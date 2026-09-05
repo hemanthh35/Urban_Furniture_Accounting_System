@@ -42,6 +42,14 @@ export interface SalesOrderPayload {
   items: { product_id: number; quantity: number; unit_price_cents: number; tax_percent: number }[];
 }
 
+export interface CheckoutResponse {
+  razorpay_key_id: string;
+  razorpay_order_id: string;
+  amount_cents: number;
+  currency: string;
+  customer_invoice_id: number;
+}
+
 export const salesApi = {
   list: () => request<SalesOrder[]>("/sales-orders"),
   create: (payload: SalesOrderPayload) =>
@@ -58,4 +66,7 @@ export const salesApi = {
 
   payInvoice: (invoiceId: number, method: string, amount_cents: number, date: string) =>
     request(`/customer-invoices/${invoiceId}/pay`, { method: "POST", body: { customer_invoice_id: invoiceId, method, amount_cents, date } }),
+
+  checkout: (invoiceId: number) =>
+    request<CheckoutResponse>(`/customer-invoices/${invoiceId}/checkout`, { method: "POST" }),
 };

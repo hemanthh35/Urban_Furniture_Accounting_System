@@ -6,15 +6,13 @@ import { downloadCsv } from "../../utils/export";
 export default function BudgetReportPage() {
   const [data, setData] = useState<BudgetReport | null>(null);
   const [loading, setLoading] = useState(true);
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    reportsApi.budgetReport(fromDate, toDate).then(setData).catch(() => setError("Could not load the budget report.")).finally(() => setLoading(false));
-  }, [fromDate, toDate]);
+    reportsApi.budgetReport().then(setData).catch(() => setError("Could not load the budget report.")).finally(() => setLoading(false));
+  }, []);
 
   if (loading) return <div className="empty-state">Loading...</div>;
   if (error) return <div className="form-error">{error}</div>;
@@ -24,8 +22,6 @@ export default function BudgetReportPage() {
       <div className="page-head">
         <h1>Budget Report</h1>
         <div>
-          <label>From <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></label>{" "}
-          <label>To <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></label>
           <button className="secondary" onClick={() => window.print()}>Print</button>{" "}
           <button className="secondary" onClick={() => downloadCsv("budget-report.csv", ["Budget", "Period", "Analytic Account", "Planned", "Actual", "Remaining"], data?.rows.map((r) => [r.budget_name, r.period, r.analytic_account_name, r.planned_amount_cents, r.actual_amount_cents, r.remaining_amount_cents]) ?? [])}>Export CSV</button>
         </div>

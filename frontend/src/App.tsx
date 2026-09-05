@@ -21,6 +21,7 @@ import JournalsPage from "./features/journals/JournalsPage";
 import StockReportPage from "./features/stock/StockReportPage";
 import ChangePasswordPage from "./features/auth/ChangePasswordPage";
 import UsersPage from "./features/auth/UsersPage";
+import JobsPage from "./features/jobs/JobsPage";
 
 const STAFF = ["admin", "accountant"];
 
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="/reports/balance-sheet" element={<Staff><BalanceSheetPage /></Staff>} />
           <Route path="/reports/profit-and-loss" element={<Staff><ProfitAndLossPage /></Staff>} />
           <Route path="/reports/budget-report" element={<Staff><BudgetReportPage /></Staff>} />
+          <Route path="/jobs" element={<Staff><JobsPage /></Staff>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

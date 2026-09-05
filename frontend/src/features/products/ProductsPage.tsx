@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { productsApi, type Product } from "../../api/products";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
+import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
 
 export default function ProductsPage() {
@@ -100,6 +102,8 @@ export default function ProductsPage() {
     catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore product"); }
   }
 
+  const { pageItems, page, totalPages, setPage } = usePagination(products);
+
   return (
     <div>
       <div className="page-head">
@@ -125,7 +129,7 @@ export default function ProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {products.map((p) => (
+              {pageItems.map((p) => (
                 <tr key={p.id}>
                   <td>{p.name}</td>
                   <td>{p.type}</td>
@@ -142,6 +146,7 @@ export default function ProductsPage() {
           </table>
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {modalOpen && (
         <Modal title={editingProduct ? "Edit Product" : "New Product"} onClose={() => setModalOpen(false)}>

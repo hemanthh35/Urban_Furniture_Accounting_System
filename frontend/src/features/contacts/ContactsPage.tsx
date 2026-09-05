@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { contactsApi, type Contact } from "../../api/contacts";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
+import { usePagination } from "../../hooks/usePagination";
 
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -119,6 +121,8 @@ export default function ContactsPage() {
     catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore contact"); }
   }
 
+  const { pageItems, page, totalPages, setPage } = usePagination(contacts);
+
   return (
     <div>
       <div className="page-head">
@@ -145,7 +149,7 @@ export default function ContactsPage() {
               </tr>
             </thead>
             <tbody>
-              {contacts.map((c) => (
+              {pageItems.map((c) => (
                 <tr key={c.id}>
                   <td>{c.name}</td>
                   <td>{c.type}</td>
@@ -163,6 +167,7 @@ export default function ContactsPage() {
           </table>
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {modalOpen && (
         <Modal title={editingContact ? "Edit Contact" : "New Contact"} onClose={() => setModalOpen(false)}>

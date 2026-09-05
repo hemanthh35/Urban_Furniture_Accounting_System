@@ -3,14 +3,14 @@ import { stockApi, type StockRow } from "../../api/stock";
 import { productsApi, type Product } from "../../api/products";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
+import { usePagination } from "../../hooks/usePagination";
 
 export default function StockReportPage() {
   const [rows, setRows] = useState<StockRow[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<Awaited<ReturnType<typeof stockApi.movements>>>([]);
   const [loading, setLoading] = useState(true);
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [productId, setProductId] = useState("");
   const [quantityDelta, setQuantityDelta] = useState("");
@@ -20,10 +20,10 @@ export default function StockReportPage() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([stockApi.report(fromDate, toDate), stockApi.movements(fromDate, toDate), productsApi.list()])
+    Promise.all([stockApi.report(), stockApi.movements(), productsApi.list()])
       .then(([report, movementList, productList]) => { setRows(report); setMovements(movementList); setProducts(productList); })
       .finally(() => setLoading(false));
-  }, [fromDate, toDate]);
+  }, []);
 
   async function handleAdjustment(event: FormEvent) {
     event.preventDefault();
@@ -34,13 +34,17 @@ export default function StockReportPage() {
       setProductId("");
       setQuantityDelta("");
       setReason("");
-      const [report, movementList] = await Promise.all([stockApi.report(fromDate, toDate), stockApi.movements(fromDate, toDate)]);
+      const [report, movementList] = await Promise.all([stockApi.report(), stockApi.movements()]);
       setRows(report);
       setMovements(movementList);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not save stock adjustment");
     }
   }
+
+  // Hooks must run every render regardless of the loading early-return below.
+  const rowsPage = usePagination(rows);
+  const movementsPage = usePagination(movements);
 
   if (loading) return <div className="empty-state">Loading...</div>;
 
@@ -52,8 +56,6 @@ export default function StockReportPage() {
           <p className="page-sub">Stock comes in from vendor bills and goes out through customer invoices.</p>
         </div>
         <div>
-          <label>From <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></label>{" "}
-          <label>To <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></label>{" "}
           <button onClick={() => setModalOpen(true)}>+ Stock Adjustment</button>
         </div>
       </div>
@@ -64,7 +66,7 @@ export default function StockReportPage() {
           <table>
             <thead><tr><th>Product</th><th>Quantity In</th><th>Quantity Out</th><th>On Hand</th></tr></thead>
             <tbody>
-              {rows.map((row) => (
+              {rowsPage.pageItems.map((row) => (
                 <tr key={row.product_id}>
                   <td>{row.product_name}</td>
                   <td className="mono">{row.quantity_in}</td>
@@ -76,15 +78,17 @@ export default function StockReportPage() {
           </table>
         </div>
       )}
+      <Pagination page={rowsPage.page} totalPages={rowsPage.totalPages} onChange={rowsPage.setPage} />
 
       <h2>Stock Movements</h2>
       {movements.length === 0 ? <div className="empty-state">No movements in this period.</div> : (
         <div className="table-wrap">
           <table><thead><tr><th>Date</th><th>Product</th><th>Source</th><th>Quantity</th><th>Reason</th></tr></thead>
-            <tbody>{movements.map((movement) => <tr key={movement.id}><td>{movement.movement_date}</td><td>{products.find((p) => p.id === movement.product_id)?.name ?? `#${movement.product_id}`}</td><td>{movement.source_type} #{movement.source_id}</td><td className="mono">{movement.quantity_delta}</td><td>{movement.reason ?? "-"}</td></tr>)}</tbody>
+            <tbody>{movementsPage.pageItems.map((movement) => <tr key={movement.id}><td>{movement.movement_date}</td><td>{products.find((p) => p.id === movement.product_id)?.name ?? `#${movement.product_id}`}</td><td>{movement.source_type} #{movement.source_id}</td><td className="mono">{movement.quantity_delta}</td><td>{movement.reason ?? "-"}</td></tr>)}</tbody>
           </table>
         </div>
       )}
+      <Pagination page={movementsPage.page} totalPages={movementsPage.totalPages} onChange={movementsPage.setPage} />
 
       {modalOpen && (
         <Modal title="Stock Adjustment" onClose={() => setModalOpen(false)}>

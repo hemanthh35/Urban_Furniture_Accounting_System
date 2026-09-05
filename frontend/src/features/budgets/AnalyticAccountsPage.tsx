@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { budgetsApi, type AnalyticAccount } from "../../api/budgets";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
+import { usePagination } from "../../hooks/usePagination";
 
 export default function AnalyticAccountsPage() {
   const [items, setItems] = useState<AnalyticAccount[]>([]);
@@ -78,6 +80,8 @@ export default function AnalyticAccountsPage() {
     catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore analytic account"); }
   }
 
+  const { pageItems, page, totalPages, setPage } = usePagination(items);
+
   return (
     <div>
       <div className="page-head">
@@ -101,7 +105,7 @@ export default function AnalyticAccountsPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((a) => (
+              {pageItems.map((a) => (
                 <tr key={a.id}>
                   <td>{a.name}</td>
                   <td>{a.type}</td>
@@ -115,6 +119,7 @@ export default function AnalyticAccountsPage() {
           </table>
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {modalOpen && (
         <Modal title={editingItem ? "Edit Analytic Account" : "New Analytic Account"} onClose={() => setModalOpen(false)}>

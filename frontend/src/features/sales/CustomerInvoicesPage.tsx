@@ -1,10 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { salesApi, type CustomerInvoice, type CustomerInvoiceDetail } from "../../api/sales";
 import { purchasesApi, type VendorBill, type VendorBillDetail } from "../../api/purchases";
-import { ApiError } from "../../api/client";
+import { reportsApi } from "../../api/reports";
+import { ApiError, BASE_URL } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
+import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
 import { useAuth } from "../auth/AuthContext";
+
+// Razorpay's checkout.js (loaded in index.html) defines this global - it's not
+// an npm package, so TypeScript doesn't know about it on its own.
+declare const Razorpay: new (options: Record<string, unknown>) => { open: () => void };
 
 // Reused for both the staff "Customer Invoices" page and the Contact Portal - the
 // backend's GET /customer-invoices already returns only the caller's own invoices
@@ -55,6 +62,44 @@ export default function CustomerInvoicesPage() {
     }
   }
 
+  async function downloadInvoicePdf(invoiceId: number) {
+    // Open the tab synchronously, inside the click handler - a browser only
+    // allows window.open() without being treated as a popup while it's still
+    // directly inside a user gesture. Waiting for the API call first (an
+    // await) loses that window, so the tab gets silently blocked. Point this
+    // blank tab at the real URL once the signed link comes back instead.
+    const tab = window.open("", "_blank");
+    try {
+      const { url } = await reportsApi.invoicePdfLink(invoiceId);
+      if (tab) tab.location.href = `${BASE_URL}${url}`;
+    } catch (err) {
+      tab?.close();
+      setFormError(err instanceof ApiError ? err.message : "Could not get the download link");
+    }
+  }
+
+  async function payOnline(invoice: CustomerInvoice) {
+    setFormError(null);
+    try {
+      const checkout = await salesApi.checkout(invoice.id);
+      const rzp = new Razorpay({
+        key: checkout.razorpay_key_id,
+        order_id: checkout.razorpay_order_id,
+        amount: checkout.amount_cents,
+        currency: checkout.currency,
+        name: "Urban Furniture",
+        description: `Invoice #${invoice.id}`,
+        // Razorpay confirms payment to our backend via a signed webhook, not
+        // through this callback - this just refreshes the list a moment later
+        // so the status update (usually near-instant) shows up on screen.
+        handler: () => setTimeout(load, 1500),
+      });
+      rzp.open();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not start checkout");
+    }
+  }
+
   async function viewInvoice(invoiceId: number) {
     try {
       setViewingInvoice(await salesApi.getInvoice(invoiceId));
@@ -70,6 +115,9 @@ export default function CustomerInvoicesPage() {
       setFormError(err instanceof ApiError ? err.message : "Could not load vendor bill details");
     }
   }
+
+  const invoicesPage = usePagination(invoices);
+  const vendorBillsPage = usePagination(vendorBills);
 
   return (
     <div>
@@ -97,7 +145,7 @@ export default function CustomerInvoicesPage() {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv) => (
+              {invoicesPage.pageItems.map((inv) => (
                 <tr key={inv.id}>
                   <td className="mono">#{inv.id}</td>
                   <td className="muted">{inv.invoice_date}</td>
@@ -110,9 +158,15 @@ export default function CustomerInvoicesPage() {
                   </td>
                   <td className="row-actions">
                     <button className="link-btn" onClick={() => viewInvoice(inv.id)}>View</button>{" "}
-                    {inv.status !== "paid" && (
+                    <button className="link-btn" onClick={() => downloadInvoicePdf(inv.id)}>PDF</button>{" "}
+                    {inv.status !== "paid" && role !== "contact" && (
                       <button className="link-btn" onClick={() => { setPaymentAmount(String(inv.outstanding_amount_cents / 100)); setPayingInvoice(inv); }}>
                         Pay
+                      </button>
+                    )}
+                    {inv.status !== "paid" && role === "contact" && (
+                      <button className="link-btn" onClick={() => payOnline(inv)}>
+                        Pay Online
                       </button>
                     )}
                   </td>
@@ -122,6 +176,7 @@ export default function CustomerInvoicesPage() {
           </table>
         </div>
       )}
+      <Pagination page={invoicesPage.page} totalPages={invoicesPage.totalPages} onChange={invoicesPage.setPage} />
 
       {role === "contact" && (
         <div style={{ marginTop: 32 }}>
@@ -130,7 +185,7 @@ export default function CustomerInvoicesPage() {
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Bill</th><th>Bill Date</th><th>Due Date</th><th>Amount</th><th>Status</th><th /></tr></thead>
-                <tbody>{vendorBills.map((bill) => (
+                <tbody>{vendorBillsPage.pageItems.map((bill) => (
                   <tr key={bill.id}>
                     <td className="mono">#{bill.id}</td>
                     <td>{bill.bill_date}</td>
@@ -141,6 +196,7 @@ export default function CustomerInvoicesPage() {
                   </tr>
                 ))}</tbody>
               </table>
+              <Pagination page={vendorBillsPage.page} totalPages={vendorBillsPage.totalPages} onChange={vendorBillsPage.setPage} />
             </div>
           )}
         </div>

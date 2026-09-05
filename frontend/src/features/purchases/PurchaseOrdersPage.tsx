@@ -6,6 +6,8 @@ import { productsApi, type Product } from "../../api/products";
 import { budgetsApi, type AnalyticAccount } from "../../api/budgets";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
+import { usePagination } from "../../hooks/usePagination";
 
 type DraftItem = { product_id: string; quantity: string; unit_price_cents: string; tax_percent: string };
 const emptyItem = (): DraftItem => ({ product_id: "", quantity: "", unit_price_cents: "", tax_percent: "0" });
@@ -139,6 +141,8 @@ export default function PurchaseOrdersPage() {
     }
   }
 
+  const { pageItems, page, totalPages, setPage } = usePagination(orders);
+
   return (
     <div>
       <div className="page-head">
@@ -167,7 +171,7 @@ export default function PurchaseOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((po) => (
+              {pageItems.map((po) => (
                 <tr key={po.id}>
                   <td className="mono">#{po.id}</td>
                   <td>{vendorName(po.vendor_id)}</td>
@@ -198,6 +202,7 @@ export default function PurchaseOrdersPage() {
           </table>
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {modalOpen && (
         <Modal title={editingOrder ? `Edit Purchase Order #${editingOrder.id}` : "New Purchase Order"} onClose={() => setModalOpen(false)}>

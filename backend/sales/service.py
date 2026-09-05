@@ -15,6 +15,11 @@ from sales.models import CustomerInvoice, CustomerInvoiceLine, SalesOrder, Sales
 from sales.schemas import SalesOrderCreate, SalesOrderUpdate
 from stock.service import add_movements_for_invoice
 
+# A per-line sanity cap - catches an obvious typo (e.g. 1222 instead of 12)
+# before it becomes a Sales Order, rather than only failing much later when
+# generating the invoice finds there isn't remotely enough stock.
+MAX_LINE_QUANTITY = 1000
+
 
 def _line_total_cents(item: SalesOrderItem) -> int:
     base = item.quantity * item.unit_price_cents
@@ -45,8 +50,8 @@ def create_sales_order(db: Session, payload: SalesOrderCreate) -> SalesOrder:
         if analytic.type != "Income":
             raise AppError("INVALID_ANALYTIC_ACCOUNT", "Sales orders must use an Income analytic account", 400)
     for item in payload.items:
-        if item.quantity <= 0 or item.unit_price_cents < 0 or item.tax_percent < 0 or item.tax_percent > 100:
-            raise AppError("INVALID_ORDER_LINE", "Quantity must be greater than zero, price cannot be negative, and tax cannot be negative", 400)
+        if item.quantity <= 0 or item.quantity > MAX_LINE_QUANTITY or item.unit_price_cents < 0 or item.tax_percent < 0 or item.tax_percent > 100:
+            raise AppError("INVALID_ORDER_LINE", f"Quantity must be between 1 and {MAX_LINE_QUANTITY}, price cannot be negative, and tax cannot be negative", 400)
         product = db.query(Product).filter(Product.id == item.product_id, Product.is_archived.is_(False)).first()
         if not product:
             raise AppError("PRODUCT_NOT_FOUND", f"Product {item.product_id} does not exist", 404)
@@ -78,8 +83,8 @@ def update_sales_order(db: Session, so_id: int, payload: SalesOrderUpdate) -> Sa
         if not analytic:
             raise AppError("INVALID_ANALYTIC_ACCOUNT", "Choose an active Income analytic account", 400)
     for item in payload.items:
-        if item.quantity <= 0 or item.unit_price_cents < 0 or item.tax_percent < 0 or item.tax_percent > 100:
-            raise AppError("INVALID_ORDER_LINE", "Quantity must be greater than zero and prices/tax cannot be negative", 400)
+        if item.quantity <= 0 or item.quantity > MAX_LINE_QUANTITY or item.unit_price_cents < 0 or item.tax_percent < 0 or item.tax_percent > 100:
+            raise AppError("INVALID_ORDER_LINE", f"Quantity must be between 1 and {MAX_LINE_QUANTITY} and prices/tax cannot be negative", 400)
         if not db.query(Product).filter(Product.id == item.product_id, Product.is_archived.is_(False)).first():
             raise AppError("PRODUCT_NOT_FOUND", f"Product {item.product_id} does not exist", 404)
     so.customer_id = payload.customer_id

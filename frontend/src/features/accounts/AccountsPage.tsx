@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { accountsApi, type Account } from "../../api/accounts";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
+import { usePagination } from "../../hooks/usePagination";
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -78,6 +80,8 @@ export default function AccountsPage() {
     catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore account"); }
   }
 
+  const { pageItems, page, totalPages, setPage } = usePagination(accounts);
+
   return (
     <div>
       <div className="page-head">
@@ -101,7 +105,7 @@ export default function AccountsPage() {
               </tr>
             </thead>
             <tbody>
-              {accounts.map((a) => (
+              {pageItems.map((a) => (
                 <tr key={a.id}>
                   <td>{a.name}</td>
                   <td>{a.type}</td>
@@ -115,6 +119,7 @@ export default function AccountsPage() {
           </table>
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {modalOpen && (
         <Modal title={editingAccount ? "Edit Account" : "New Account"} onClose={() => setModalOpen(false)}>

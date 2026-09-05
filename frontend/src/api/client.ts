@@ -1,6 +1,6 @@
 // One place that knows how to talk to the backend: attaches the login token to
 // every request, and turns a backend error into a JS exception the UI can catch.
-const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 export class ApiError extends Error {
   code: string;
@@ -48,4 +48,16 @@ export async function request<T>(path: string, options: Options = {}): Promise<T
   }
 
   return json as T;
+}
+
+// For endpoints that return a file (a job's ZIP result) instead of JSON - still
+// needs the auth header, so a plain <a href> or window.open can't be used.
+export async function requestBlob(path: string): Promise<Blob> {
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE_URL}${path}`, { headers });
+  if (!res.ok) throw new ApiError("DOWNLOAD_FAILED", "Could not download the file", res.status);
+  return res.blob();
 }

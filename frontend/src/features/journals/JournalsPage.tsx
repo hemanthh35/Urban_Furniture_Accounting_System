@@ -3,6 +3,8 @@ import { accountsApi, type Account } from "../../api/accounts";
 import { journalsApi, type Journal, type JournalEntry } from "../../api/journals";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
+import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
 
 export default function JournalsPage() {
@@ -96,6 +98,12 @@ export default function JournalsPage() {
     catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore journal"); }
   }
 
+  // Hooks must run every render regardless of the loading early-return below,
+  // so these are called unconditionally here.
+  const journalsPage = usePagination(journals);
+  const entryRows = entries.flatMap((entry) => entry.lines.map((line) => ({ entry, line })));
+  const entryRowsPage = usePagination(entryRows);
+
   if (loading) return <div className="empty-state">Loading...</div>;
 
   return (
@@ -114,7 +122,7 @@ export default function JournalsPage() {
             <tr><th>Journal</th><th>Type</th><th>Default Account</th><th /></tr>
           </thead>
           <tbody>
-            {journals.map((journal) => (
+            {journalsPage.pageItems.map((journal) => (
               <tr key={journal.id}>
                 <td>{journal.name}</td>
                 <td>{journal.type}</td>
@@ -125,6 +133,7 @@ export default function JournalsPage() {
           </tbody>
         </table>
       </div>
+      <Pagination page={journalsPage.page} totalPages={journalsPage.totalPages} onChange={journalsPage.setPage} />
 
       <h2>Journal Entries</h2>
       {entries.length === 0 ? (
@@ -136,7 +145,7 @@ export default function JournalsPage() {
               <tr><th>Date</th><th>Journal</th><th>Reference</th><th>Account</th><th>Debit</th><th>Credit</th></tr>
             </thead>
             <tbody>
-              {entries.flatMap((entry) => entry.lines.map((line) => (
+              {entryRowsPage.pageItems.map(({ entry, line }) => (
                 <tr key={`${entry.id}-${line.id}`}>
                   <td>{entry.date}</td>
                   <td>{entry.journal_name}</td>
@@ -145,11 +154,12 @@ export default function JournalsPage() {
                   <td className="mono">{formatMoney(line.debit_cents)}</td>
                   <td className="mono">{formatMoney(line.credit_cents)}</td>
                 </tr>
-              )))}
+              ))}
             </tbody>
           </table>
         </div>
       )}
+      <Pagination page={entryRowsPage.page} totalPages={entryRowsPage.totalPages} onChange={entryRowsPage.setPage} />
 
       {modalOpen && (
         <Modal title={editingJournal ? `Edit Journal #${editingJournal.id}` : "New Journal"} onClose={() => setModalOpen(false)}>

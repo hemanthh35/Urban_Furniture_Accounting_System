@@ -46,11 +46,21 @@ export interface DashboardSummary {
   budget_actual_cents: number;
 }
 
+export interface PdfLink {
+  url: string;
+  expires_at: number;
+}
+
 export const reportsApi = {
   balanceSheet: (fromDate = "", toDate = "") => request<BalanceSheet>(`/reports/balance-sheet${reportQuery(fromDate, toDate)}`),
   profitAndLoss: (fromDate = "", toDate = "") => request<ProfitAndLoss>(`/reports/profit-and-loss${reportQuery(fromDate, toDate)}`),
   budgetReport: (fromDate = "", toDate = "") => request<BudgetReport>(`/reports/budget-report${reportQuery(fromDate, toDate)}`),
   dashboardSummary: () => request<DashboardSummary>("/reports/dashboard-summary"),
+
+  // Returns a signed, short-lived download URL - safe to open directly in a new
+  // tab since it carries its own proof of authorization, no login header needed.
+  invoicePdfLink: (invoiceId: number) => request<PdfLink>(`/reports/customer-invoices/${invoiceId}/pdf-link`),
+  billPdfLink: (billId: number) => request<PdfLink>(`/reports/vendor-bills/${billId}/pdf-link`),
 };
 
 function reportQuery(fromDate: string, toDate: string): string {

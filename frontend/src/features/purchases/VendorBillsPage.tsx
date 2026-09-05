@@ -1,7 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { purchasesApi, type VendorBill, type VendorBillDetail } from "../../api/purchases";
-import { ApiError } from "../../api/client";
+import { reportsApi } from "../../api/reports";
+import { ApiError, BASE_URL } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
+import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
 
 export default function VendorBillsPage() {
@@ -44,6 +47,19 @@ export default function VendorBillsPage() {
     }
   }
 
+  async function downloadBillPdf(billId: number) {
+    // Open synchronously, inside the click handler, then redirect once the
+    // signed link comes back - see the identical comment in CustomerInvoicesPage.
+    const tab = window.open("", "_blank");
+    try {
+      const { url } = await reportsApi.billPdfLink(billId);
+      if (tab) tab.location.href = `${BASE_URL}${url}`;
+    } catch (err) {
+      tab?.close();
+      setFormError(err instanceof ApiError ? err.message : "Could not get the download link");
+    }
+  }
+
   async function viewBill(billId: number) {
     try {
       setViewingBill(await purchasesApi.getBill(billId));
@@ -51,6 +67,8 @@ export default function VendorBillsPage() {
       setFormError(err instanceof ApiError ? err.message : "Could not load bill details");
     }
   }
+
+  const { pageItems, page, totalPages, setPage } = usePagination(bills);
 
   return (
     <div>
@@ -79,7 +97,7 @@ export default function VendorBillsPage() {
               </tr>
             </thead>
             <tbody>
-              {bills.map((b) => (
+              {pageItems.map((b) => (
                 <tr key={b.id}>
                   <td className="mono">#{b.id}</td>
                   <td className="muted">#{b.purchase_order_id}</td>
@@ -93,6 +111,7 @@ export default function VendorBillsPage() {
                   </td>
                   <td className="row-actions">
                     <button className="link-btn" onClick={() => viewBill(b.id)}>View</button>{" "}
+                    <button className="link-btn" onClick={() => downloadBillPdf(b.id)}>PDF</button>{" "}
                     {b.status !== "paid" && (
                       <button className="link-btn" onClick={() => { setPaymentAmount(String(b.outstanding_amount_cents / 100)); setPayingBill(b); }}>
                         Pay
@@ -105,6 +124,7 @@ export default function VendorBillsPage() {
           </table>
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {payingBill && (
         <Modal title={`Pay Bill #${payingBill.id}`} onClose={() => setPayingBill(null)}>

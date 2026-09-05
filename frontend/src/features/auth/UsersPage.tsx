@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { authApi, type User } from "../../api/auth";
 import { ApiError } from "../../api/client";
+import Pagination from "../../components/Pagination";
+import { usePagination } from "../../hooks/usePagination";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -33,6 +35,8 @@ export default function UsersPage() {
     } catch (err) { setError(err instanceof ApiError ? err.message : "Could not create user"); }
   }
 
+  const { pageItems, page, totalPages, setPage } = usePagination(users);
+
   return <div>
     <div className="page-head"><div><h1>User Access</h1><p className="page-sub">Only an admin can activate or deactivate login accounts.</p></div></div>
     {error && <div className="form-error">{error}</div>}
@@ -46,7 +50,8 @@ export default function UsersPage() {
       <button type="submit">Create</button>
     </form>
     <div className="table-wrap"><table><thead><tr><th>Email</th><th>Role</th><th>Status</th><th /></tr></thead><tbody>
-      {users.map((user) => <tr key={user.id}><td>{user.email}</td><td>{user.role}</td><td>{user.is_active ? "Active" : "Inactive"}</td><td><button className="secondary" onClick={() => toggle(user)}>{user.is_active ? "Deactivate" : "Activate"}</button></td></tr>)}
+      {pageItems.map((user) => <tr key={user.id}><td>{user.email}</td><td>{user.role}</td><td>{user.is_active ? "Active" : "Inactive"}</td><td><button className="secondary" onClick={() => toggle(user)}>{user.is_active ? "Deactivate" : "Activate"}</button></td></tr>)}
     </tbody></table></div>
+    <Pagination page={page} totalPages={totalPages} onChange={setPage} />
   </div>;
 }

@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { budgetsApi, type AnalyticAccount, type Budget } from "../../api/budgets";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
+import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
 
 export default function BudgetsPage() {
@@ -119,6 +121,8 @@ export default function BudgetsPage() {
     catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore budget"); }
   }
 
+  const { pageItems, page, totalPages, setPage } = usePagination(budgets);
+
   return (
     <div>
       <div className="page-head">
@@ -145,7 +149,7 @@ export default function BudgetsPage() {
               </tr>
             </thead>
             <tbody>
-              {budgets.map((b) => (
+              {pageItems.map((b) => (
                 <tr key={b.id}>
                   <td>{b.name}</td>
                   <td>{b.period}</td>
@@ -163,6 +167,7 @@ export default function BudgetsPage() {
           </table>
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {modalOpen && (
         <Modal title={editingBudget ? "Edit Budget" : "New Budget"} onClose={() => setModalOpen(false)}>
