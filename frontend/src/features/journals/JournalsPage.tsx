@@ -100,9 +100,9 @@ export default function JournalsPage() {
 
   // Hooks must run every render regardless of the loading early-return below,
   // so these are called unconditionally here.
-  const journalsPage = usePagination(journals);
+  const journalsPage = usePagination([...journals].sort((a, b) => b.id - a.id));
   const entryRows = entries.flatMap((entry) => entry.lines.map((line) => ({ entry, line })));
-  const entryRowsPage = usePagination(entryRows);
+  const entryRowsPage = usePagination([...entryRows].sort((a, b) => b.entry.id - a.entry.id || b.line.id - a.line.id));
 
   if (loading) return <div className="empty-state">Loading...</div>;
 

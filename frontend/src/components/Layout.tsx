@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 
@@ -7,7 +7,7 @@ type NavGroup = { label: string; items: NavItem[] };
 
 // Dashboard stays a standalone top-level link; everything else is grouped into
 // a dropdown so the sidebar isn't one long list of 17 items.
-const DASHBOARD: NavItem = { to: "/", label: "Dashboard", end: true };
+const DASHBOARD: NavItem = { to: "/dashboard", label: "Dashboard", end: true };
 
 const STAFF_GROUPS: NavGroup[] = [
   {
@@ -53,6 +53,7 @@ const STAFF_GROUPS: NavGroup[] = [
     label: "System",
     items: [
       { to: "/jobs", label: "System Jobs" },
+      { to: "/bulk-import", label: "Bulk Import" },
       { to: "/change-password", label: "Change Password" },
       { to: "/users", label: "User Access", adminOnly: true },
     ],
@@ -78,6 +79,28 @@ export default function Layout({ children }: { children: ReactNode }) {
   // never dropped onto a page with no visible indication of where it lives.
   const activeGroup = groups.find((group) => group.items.some((item) => location.pathname.startsWith(item.to)))?.label ?? null;
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroup);
+
+  // Give mobile table cards their field names without repeating the same
+  // labels in every page component. The desktop table headers become the
+  // labels shown beside each value on small screens.
+  useEffect(() => {
+    const addMobileLabels = () => {
+      document.querySelectorAll<HTMLTableElement>(".table-wrap table").forEach((table) => {
+        const labels = Array.from(table.querySelectorAll("thead th")).map((header) => header.textContent?.trim() ?? "");
+        table.querySelectorAll<HTMLTableRowElement>("tbody tr").forEach((row) => {
+          Array.from(row.cells).forEach((cell, index) => {
+            if (labels[index]) cell.setAttribute("data-label", labels[index]);
+          });
+        });
+      });
+    };
+
+    addMobileLabels();
+    const observer = new MutationObserver(addMobileLabels);
+    const content = document.querySelector(".content");
+    if (content) observer.observe(content, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   function toggleGroup(label: string) {
     setOpenGroup((current) => (current === label ? null : label));

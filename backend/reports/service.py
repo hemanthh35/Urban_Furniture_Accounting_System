@@ -16,8 +16,8 @@ from journals.models import JournalEntry, JournalEntryLine
 from reports.schemas import AccountBalance, BalanceSheet, BudgetReport, BudgetReportRow, DashboardSummary, ProfitAndLoss
 from payments.models import Payment
 from products.models import Product
-from purchases.models import VendorBill
-from sales.models import CustomerInvoice
+from purchases.models import PurchaseOrder, VendorBill
+from sales.models import CustomerInvoice, SalesOrder
 from stock.models import StockMovement
 
 
@@ -139,9 +139,20 @@ def dashboard_summary(db: Session) -> DashboardSummary:
         quantity = sum(m.quantity_delta for m in db.query(StockMovement).filter(StockMovement.product_id == product.id).all())
         products_in_stock += 1 if quantity > 0 else 0
     pnl = profit_and_loss(db)
+    bs = balance_sheet(db)
     budget_rows = budget_report(db).rows
+    top_expense = max(pnl.expenses, key=lambda a: a.balance_cents, default=None)
+    top_income = max(pnl.income, key=lambda a: a.balance_cents, default=None)
     return DashboardSummary(
-        total_assets_cents=balance_sheet(db).total_assets_cents,
+        total_assets_cents=bs.total_assets_cents,
+        total_liabilities_cents=bs.total_liabilities_cents,
+        total_capital_cents=bs.total_capital_cents,
+        total_income_cents=pnl.total_income_cents,
+        total_expenses_cents=pnl.total_expenses_cents,
+        top_expense_account=top_expense.account_name if top_expense else None,
+        top_expense_cents=top_expense.balance_cents if top_expense else 0,
+        top_income_account=top_income.account_name if top_income else None,
+        top_income_cents=top_income.balance_cents if top_income else 0,
         net_profit_cents=pnl.net_profit_cents,
         outstanding_invoices_cents=sum(max(invoice.amount_cents - invoice_paid[invoice.id], 0) for invoice in invoices),
         outstanding_bills_cents=sum(max(bill.amount_cents - bill_paid[bill.id], 0) for bill in bills),
@@ -149,4 +160,8 @@ def dashboard_summary(db: Session) -> DashboardSummary:
         units_in_stock=stock_total,
         budget_planned_cents=sum(row.planned_amount_cents for row in budget_rows),
         budget_actual_cents=sum(row.actual_amount_cents for row in budget_rows),
+        # "Draft" = still needs action (convert to a Bill/Invoice) - the number
+        # that actually matters on a dashboard shortcut, not the total ever created.
+        draft_purchase_orders=db.query(PurchaseOrder).filter(PurchaseOrder.status == "draft").count(),
+        draft_sales_orders=db.query(SalesOrder).filter(SalesOrder.status == "draft").count(),
     )

@@ -18,12 +18,6 @@ export default function BalanceSheetPage() {
   if (error) return <div className="form-error">{error}</div>;
   if (!data) return null;
 
-  // Liabilities and Capital are two separate account types in the ledger, but
-  // on a Balance Sheet they're conventionally shown together in one right-hand
-  // column (Assets = Liabilities + Capital) - laid out beside Assets, row by
-  // row, purely for the printed layout.
-  const rightSide = [...data.liabilities, ...data.capital];
-  const rowCount = Math.max(data.assets.length, rightSide.length);
   const totalRight = data.total_liabilities_cents + data.total_capital_cents;
 
   return (
@@ -36,27 +30,33 @@ export default function BalanceSheetPage() {
         </div>
       </div>
 
-      <div className="table-wrap report-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Assets</th>
-              <th>Liabilities</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: rowCount }).map((_, i) => (
-              <tr key={i}>
-                <td>{data.assets[i] ? `${data.assets[i].account_name} - ${formatMoney(data.assets[i].balance_cents)}` : ""}</td>
-                <td>{rightSide[i] ? `${rightSide[i].account_name} - ${formatMoney(rightSide[i].balance_cents)}` : ""}</td>
-              </tr>
-            ))}
-            <tr className="report-section-row">
-              <td>Total Assets - {formatMoney(data.total_assets_cents)}</td>
-              <td>Total Liabilities - {formatMoney(totalRight)}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="report-grid">
+        <section className="report-card">
+          <h2>Assets</h2>
+          <div className="table-wrap report-table">
+            <table>
+              <thead><tr><th>Account</th><th>Amount</th></tr></thead>
+              <tbody>
+                {data.assets.map((account) => <tr key={account.account_name}><td>{account.account_name}</td><td className="mono">{formatMoney(account.balance_cents)}</td></tr>)}
+                <tr className="report-total-row"><td>Total Assets</td><td className="mono">{formatMoney(data.total_assets_cents)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="report-card">
+          <h2>Liabilities &amp; Capital</h2>
+          <div className="table-wrap report-table">
+            <table>
+              <thead><tr><th>Account</th><th>Amount</th></tr></thead>
+              <tbody>
+                {data.liabilities.map((account) => <tr key={`liability-${account.account_name}`}><td>{account.account_name}</td><td className="mono">{formatMoney(account.balance_cents)}</td></tr>)}
+                {data.capital.map((account) => <tr key={`capital-${account.account_name}`}><td>{account.account_name}</td><td className="mono">{formatMoney(account.balance_cents)}</td></tr>)}
+                <tr className="report-total-row"><td>Total Liabilities &amp; Capital</td><td className="mono">{formatMoney(totalRight)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </div>
   );

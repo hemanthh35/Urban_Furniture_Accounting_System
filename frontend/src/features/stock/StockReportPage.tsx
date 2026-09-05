@@ -4,6 +4,7 @@ import { productsApi, type Product } from "../../api/products";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
+import DatePicker from "../../components/DatePicker";
 import { usePagination } from "../../hooks/usePagination";
 
 export default function StockReportPage() {
@@ -43,8 +44,9 @@ export default function StockReportPage() {
   }
 
   // Hooks must run every render regardless of the loading early-return below.
+  // rows is a per-product summary, not a log - no "newest" to sort by, leave as-is.
   const rowsPage = usePagination(rows);
-  const movementsPage = usePagination(movements);
+  const movementsPage = usePagination([...movements].sort((a, b) => b.id - a.id));
 
   if (loading) return <div className="empty-state">Loading...</div>;
 
@@ -95,7 +97,7 @@ export default function StockReportPage() {
           <form onSubmit={handleAdjustment}>
             <label>Product<select value={productId} onChange={(e) => setProductId(e.target.value)} required><option value="" disabled>Select a product</option>{products.filter((p) => p.type !== "Service").map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
             <label>Quantity Change<input type="number" value={quantityDelta} onChange={(e) => setQuantityDelta(e.target.value)} placeholder="Use negative to remove" required /></label>
-            <label>Date<input type="date" value={movementDate} onChange={(e) => setMovementDate(e.target.value)} required /></label>
+            <label>Date<DatePicker value={movementDate} onChange={setMovementDate} required /></label>
             <label>Reason<input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Opening stock, correction..." /></label>
             {error && <div className="form-error">{error}</div>}
             <div className="modal-actions"><button type="button" className="secondary" onClick={() => setModalOpen(false)}>Cancel</button><button type="submit">Save Adjustment</button></div>

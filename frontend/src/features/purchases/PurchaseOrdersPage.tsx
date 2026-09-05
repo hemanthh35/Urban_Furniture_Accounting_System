@@ -7,6 +7,8 @@ import { budgetsApi, type AnalyticAccount } from "../../api/budgets";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
+import DateRangeExport from "../../components/DateRangeExport";
+import DatePicker from "../../components/DatePicker";
 import { usePagination } from "../../hooks/usePagination";
 
 type DraftItem = { product_id: string; quantity: string; unit_price_cents: string; tax_percent: string };
@@ -141,7 +143,7 @@ export default function PurchaseOrdersPage() {
     }
   }
 
-  const { pageItems, page, totalPages, setPage } = usePagination(orders);
+  const { pageItems, page, totalPages, setPage } = usePagination([...orders].sort((a, b) => b.id - a.id));
 
   return (
     <div>
@@ -150,7 +152,16 @@ export default function PurchaseOrdersPage() {
           <h1>Purchase Orders</h1>
           <p className="page-sub">Once goods are received, convert a PO into a Vendor Bill - that's the step that posts to the ledger.</p>
         </div>
-        <button onClick={openNew}>+ New Purchase Order</button>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <DateRangeExport
+            items={orders}
+            getDate={(po) => po.order_date}
+            filename="purchase-orders.csv"
+            headers={["PO", "Vendor", "Date", "Status"]}
+            toRow={(po) => [po.id, vendorName(po.vendor_id), po.order_date, po.status]}
+          />
+          <button onClick={openNew}>+ New Purchase Order</button>
+        </div>
       </div>
 
       {loading ? (
@@ -222,7 +233,7 @@ export default function PurchaseOrdersPage() {
             </label>
             <label>
               Order Date
-              <input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} required />
+              <DatePicker value={orderDate} onChange={setOrderDate} required />
             </label>
             <label>
               Budget / Analytic Account
@@ -235,7 +246,17 @@ export default function PurchaseOrdersPage() {
             <div className="item-rows-label">Line items</div>
             {items.map((item, i) => (
               <div className="item-row" key={i}>
-                <select value={item.product_id} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, product_id: e.target.value } : it)))} required>
+                <select
+                  value={item.product_id}
+                  onChange={(e) => {
+                    const productId = e.target.value;
+                    // Auto-fill the tax % from the product's own GST rate - still
+                    // a normal editable field afterward, this just saves retyping it.
+                    const gstPercent = products.find((p) => String(p.id) === productId)?.gst_percent;
+                    setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, product_id: productId, tax_percent: gstPercent !== undefined ? String(gstPercent) : it.tax_percent } : it)));
+                  }}
+                  required
+                >
                   <option value="" disabled>
                     Product
                   </option>
@@ -275,8 +296,8 @@ export default function PurchaseOrdersPage() {
       {convertingPo && (
         <Modal title={`Convert PO #${convertingPo.id} to Bill`} onClose={() => setConvertingPo(null)}>
           <form onSubmit={handleConvertToBill}>
-            <label>Bill Date<input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} required /></label>
-            <label>Due Date<input type="date" value={billDueDate} onChange={(e) => setBillDueDate(e.target.value)} /></label>
+            <label>Bill Date<DatePicker value={billDate} onChange={setBillDate} required /></label>
+            <label>Due Date<DatePicker value={billDueDate} onChange={setBillDueDate} /></label>
             {formError && <div className="form-error">{formError}</div>}
             <div className="modal-actions">
               <button type="button" className="secondary" onClick={() => setConvertingPo(null)}>Cancel</button>

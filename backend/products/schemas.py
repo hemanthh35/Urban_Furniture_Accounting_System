@@ -7,6 +7,9 @@ class ProductCreate(BaseModel):
     sales_price_cents: int
     cost_cents: int
     category: str | None = None
+    # Saved once per product so Sales/Purchase Order lines can auto-fill their
+    # tax % instead of it being retyped by hand every time.
+    gst_percent: int = 0
 
 
 class ProductUpdate(ProductCreate):
@@ -20,6 +23,7 @@ class ProductOut(BaseModel):
     sales_price_cents: int
     cost_cents: int
     category: str | None
+    gst_percent: int = 0
     is_archived: bool = False
 
     class Config:

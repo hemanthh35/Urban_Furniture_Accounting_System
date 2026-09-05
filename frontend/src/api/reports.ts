@@ -37,6 +37,14 @@ export interface BudgetReport {
 
 export interface DashboardSummary {
   total_assets_cents: number;
+  total_liabilities_cents: number;
+  total_capital_cents: number;
+  total_income_cents: number;
+  total_expenses_cents: number;
+  top_expense_account: string | null;
+  top_expense_cents: number;
+  top_income_account: string | null;
+  top_income_cents: number;
   net_profit_cents: number;
   outstanding_invoices_cents: number;
   outstanding_bills_cents: number;
@@ -44,6 +52,8 @@ export interface DashboardSummary {
   units_in_stock: number;
   budget_planned_cents: number;
   budget_actual_cents: number;
+  draft_purchase_orders: number;
+  draft_sales_orders: number;
 }
 
 export interface PdfLink {

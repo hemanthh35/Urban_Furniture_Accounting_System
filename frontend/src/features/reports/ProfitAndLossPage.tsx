@@ -28,53 +28,37 @@ export default function ProfitAndLossPage() {
         </div>
       </div>
 
-      <div className="table-wrap report-table pl-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Balance</th>
-              <th className="mono">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="report-section-row">
-              <td colSpan={2}>Income</td>
-            </tr>
-            {data.income.map((a) => (
-              <tr key={a.account_name}>
-                <td>{a.account_name}</td>
-                <td className="mono">{formatMoney(a.balance_cents)}</td>
-              </tr>
-            ))}
-            <tr className="report-section-row">
-              <td>Total Income</td>
-              <td className="mono">{formatMoney(data.total_income_cents)}</td>
-            </tr>
-            <tr className="report-spacer-row">
-              <td colSpan={2} />
-            </tr>
-            <tr className="report-section-row">
-              <td colSpan={2}>Expenses</td>
-            </tr>
-            {data.expenses.map((a) => (
-              <tr key={a.account_name}>
-                <td>{a.account_name}</td>
-                <td className="mono">{formatMoney(a.balance_cents)}</td>
-              </tr>
-            ))}
-            <tr className="report-section-row">
-              <td>Total Expenses</td>
-              <td className="mono">{formatMoney(data.total_expenses_cents)}</td>
-            </tr>
-            <tr className="report-spacer-row">
-              <td colSpan={2} />
-            </tr>
-            <tr className="report-net-row">
-              <td>Net Income</td>
-              <td className="mono">{formatMoney(data.net_profit_cents)}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="report-grid">
+        <section className="report-card">
+          <h2>Income</h2>
+          <div className="table-wrap report-table">
+            <table>
+              <thead><tr><th>Account</th><th>Amount</th></tr></thead>
+              <tbody>
+                {data.income.map((account) => <tr key={account.account_name}><td>{account.account_name}</td><td className="mono">{formatMoney(account.balance_cents)}</td></tr>)}
+                <tr className="report-total-row"><td>Total Income</td><td className="mono">{formatMoney(data.total_income_cents)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="report-card">
+          <h2>Expenses</h2>
+          <div className="table-wrap report-table">
+            <table>
+              <thead><tr><th>Account</th><th>Amount</th></tr></thead>
+              <tbody>
+                {data.expenses.map((account) => <tr key={account.account_name}><td>{account.account_name}</td><td className="mono">{formatMoney(account.balance_cents)}</td></tr>)}
+                <tr className="report-total-row"><td>Total Expenses</td><td className="mono">{formatMoney(data.total_expenses_cents)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div className="report-net-card">
+        <span>Net Income</span>
+        <strong>{formatMoney(data.net_profit_cents)}</strong>
       </div>
     </div>
   );

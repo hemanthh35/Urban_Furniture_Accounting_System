@@ -4,9 +4,12 @@ import { salesApi, type SalesOrder } from "../../api/sales";
 import { contactsApi, type Contact } from "../../api/contacts";
 import { productsApi, type Product } from "../../api/products";
 import { budgetsApi, type AnalyticAccount } from "../../api/budgets";
+import { stockApi } from "../../api/stock";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
+import DateRangeExport from "../../components/DateRangeExport";
+import DatePicker from "../../components/DatePicker";
 import { usePagination } from "../../hooks/usePagination";
 
 type DraftItem = { product_id: string; quantity: string; unit_price_cents: string; tax_percent: string };
@@ -17,6 +20,7 @@ export default function SalesOrdersPage() {
   const [customers, setCustomers] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([]);
+  const [stockOnHand, setStockOnHand] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<SalesOrder | null>(null);
@@ -38,11 +42,12 @@ export default function SalesOrdersPage() {
   async function load() {
     setLoading(true);
     try {
-      const [so, contacts, prods, analytic] = await Promise.all([salesApi.list(), contactsApi.list(), productsApi.list(), budgetsApi.listAnalyticAccounts()]);
+      const [so, contacts, prods, analytic, stockRows] = await Promise.all([salesApi.list(), contactsApi.list(), productsApi.list(), budgetsApi.listAnalyticAccounts(), stockApi.report()]);
       setOrders(so);
       setCustomers(contacts.filter((c) => c.type === "Customer" || c.type === "Both"));
       setProducts(prods);
       setAnalyticAccounts(analytic);
+      setStockOnHand(Object.fromEntries(stockRows.map((row) => [row.product_id, row.quantity_on_hand])));
     } finally {
       setLoading(false);
     }
@@ -141,7 +146,7 @@ export default function SalesOrdersPage() {
     }
   }
 
-  const { pageItems, page, totalPages, setPage } = usePagination(orders);
+  const { pageItems, page, totalPages, setPage } = usePagination([...orders].sort((a, b) => b.id - a.id));
 
   return (
     <div>
@@ -150,7 +155,16 @@ export default function SalesOrdersPage() {
           <h1>Sales Orders</h1>
           <p className="page-sub">Generating a Customer Invoice from an SO is the step that posts to the ledger.</p>
         </div>
-        <button onClick={openNew}>+ New Sales Order</button>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <DateRangeExport
+            items={orders}
+            getDate={(so) => so.order_date}
+            filename="sales-orders.csv"
+            headers={["SO", "Customer", "Date", "Status"]}
+            toRow={(so) => [so.id, customerName(so.customer_id), so.order_date, so.status]}
+          />
+          <button onClick={openNew}>+ New Sales Order</button>
+        </div>
       </div>
 
       {loading ? (
@@ -222,7 +236,7 @@ export default function SalesOrdersPage() {
             </label>
             <label>
               Order Date
-              <input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} required />
+              <DatePicker value={orderDate} onChange={setOrderDate} required />
             </label>
             <label>
               Budget / Analytic Account
@@ -233,28 +247,50 @@ export default function SalesOrdersPage() {
             </label>
 
             <div className="item-rows-label">Line items</div>
-            {items.map((item, i) => (
-              <div className="item-row sales-item-row" key={i}>
-                <select value={item.product_id} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, product_id: e.target.value } : it)))} required>
-                  <option value="" disabled>
-                    Product
-                  </option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-                <input type="number" min="1" placeholder="Qty" value={item.quantity} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, quantity: e.target.value } : it)))} required />
-                <input type="number" step="0.01" placeholder="Unit Price ₹" value={item.unit_price_cents} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, unit_price_cents: e.target.value } : it)))} required />
-                <input type="number" min="0" max="100" placeholder="Tax %" value={item.tax_percent} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, tax_percent: e.target.value } : it)))} />
-                {items.length > 1 && (
-                  <button type="button" className="icon-btn" onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove line">
-                    &times;
-                  </button>
-                )}
-              </div>
-            ))}
+            {items.map((item, i) => {
+              const available = item.product_id ? stockOnHand[Number(item.product_id)] ?? 0 : null;
+              const requested = parseInt(item.quantity || "0", 10);
+              const short = available !== null && requested > available;
+              return (
+                <div key={i}>
+                  <div className="item-row sales-item-row">
+                    <select
+                      value={item.product_id}
+                      onChange={(e) => {
+                        const productId = e.target.value;
+                        // Auto-fill the tax % from the product's own GST rate - still
+                        // a normal editable field afterward, this just saves retyping it.
+                        const gstPercent = products.find((p) => String(p.id) === productId)?.gst_percent;
+                        setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, product_id: productId, tax_percent: gstPercent !== undefined ? String(gstPercent) : it.tax_percent } : it)));
+                      }}
+                      required
+                    >
+                      <option value="" disabled>
+                        Product
+                      </option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    <input type="number" min="1" placeholder="Qty" value={item.quantity} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, quantity: e.target.value } : it)))} required />
+                    <input type="number" step="0.01" placeholder="Unit Price ₹" value={item.unit_price_cents} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, unit_price_cents: e.target.value } : it)))} required />
+                    <input type="number" min="0" max="100" placeholder="Tax %" value={item.tax_percent} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, tax_percent: e.target.value } : it)))} />
+                    {items.length > 1 && (
+                      <button type="button" className="icon-btn" onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove line">
+                        &times;
+                      </button>
+                    )}
+                  </div>
+                  {short && (
+                    <p className="field-hint" style={{ color: "var(--warning)", marginTop: "-4px" }}>
+                      Only {available} in stock - Generate Invoice will fail until more comes in (this draft can still be saved).
+                    </p>
+                  )}
+                </div>
+              );
+            })}
             <button type="button" className="secondary add-line-btn" onClick={() => setItems((prev) => [...prev, emptyItem()])}>
               + Add line
             </button>
@@ -275,8 +311,8 @@ export default function SalesOrdersPage() {
       {invoicingSo && (
         <Modal title={`Generate Invoice from SO #${invoicingSo.id}`} onClose={() => setInvoicingSo(null)}>
           <form onSubmit={handleGenerateInvoice}>
-            <label>Invoice Date<input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} required /></label>
-            <label>Due Date<input type="date" value={invoiceDueDate} onChange={(e) => setInvoiceDueDate(e.target.value)} /></label>
+            <label>Invoice Date<DatePicker value={invoiceDate} onChange={setInvoiceDate} required /></label>
+            <label>Due Date<DatePicker value={invoiceDueDate} onChange={setInvoiceDueDate} /></label>
             {formError && <div className="form-error">{formError}</div>}
             <div className="modal-actions">
               <button type="button" className="secondary" onClick={() => setInvoicingSo(null)}>Cancel</button>

@@ -2,14 +2,19 @@
 then generate a Customer Invoice from it. Generating the invoice is what actually
 touches the ledger."""
 
+import logging
 from datetime import date
 
 from sqlalchemy.orm import Session
 
 from contacts.models import Contact
+from core.config import settings
+from core.email import send_invoice_email
 from core.errors import AppError
+from core.signing import sign_document_token
 from journals.posting import post_customer_invoice
 from products.models import Product
+from reports.pdf import build_customer_invoice_pdf
 from budgets.models import AnalyticAccount
 from sales.models import CustomerInvoice, CustomerInvoiceLine, SalesOrder, SalesOrderItem
 from sales.schemas import SalesOrderCreate, SalesOrderUpdate
@@ -146,6 +151,19 @@ def generate_customer_invoice(db: Session, so_id: int, invoice_date: date, due_d
     add_movements_for_invoice(db, invoice.id, invoice_date, so.items)
     db.commit()
     db.refresh(invoice)
+
+    customer = db.query(Contact).filter(Contact.id == so.customer_id).first()
+    if customer and customer.email:
+        # The invoice itself is already committed above - a PDF-rendering hiccup
+        # here should never turn into a 500 for something that already succeeded.
+        try:
+            token, _ = sign_document_token("customer-invoice", invoice.id)
+            pdf_url = f"{settings.backend_base_url}/reports/public/customer-invoices/{invoice.id}/pdf?token={token}"
+            pdf_bytes = build_customer_invoice_pdf(db, invoice)
+            send_invoice_email(customer.email, customer.name, invoice.id, invoice.amount_cents, str(due_date) if due_date else None, pdf_url, pdf_bytes=pdf_bytes)
+        except Exception:
+            logging.getLogger("urbanfurniture.email").warning("Could not build/send invoice PDF email for invoice %s", invoice.id, exc_info=True)
+
     return invoice
 
 

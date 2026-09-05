@@ -24,10 +24,19 @@ app = FastAPI(title="Urban Furniture Accounting System")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:5175"],
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):\d+",
+    # Also allow the dev machine's LAN IP (e.g. testing from a phone on the same
+    # network) - matches localhost/127.0.0.1 plus any private-network address
+    # (192.168.x.x, 10.x.x.x, 172.16-31.x.x), any port. Fine for local dev; a
+    # real deployment would list its actual frontend origin(s) explicitly instead.
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Browsers hide every response header from JS on a cross-origin request
+    # except a small default allowlist - Content-Disposition isn't in it, so
+    # without this, the frontend can never read the filename we set on a PDF
+    # or ZIP download, even though the header genuinely was sent.
+    expose_headers=["Content-Disposition"],
 )
 
 

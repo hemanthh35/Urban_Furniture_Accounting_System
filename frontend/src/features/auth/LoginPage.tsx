@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { authApi } from "../../api/auth";
 import { ApiError } from "../../api/client";
 import { useAuth } from "./AuthContext";
+import PasswordInput from "../../components/PasswordInput";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -19,10 +20,10 @@ export default function LoginPage() {
     try {
       const res = await authApi.login(loginId, password);
       login(res.access_token, res.role);
-      // A "contact" role user has no access to "/" (that's staff-only) - send
-      // them straight to their own portal instead, or they'd land on a page
-      // that immediately redirects them back to itself.
-      navigate(res.role === "contact" ? "/portal" : "/");
+      // A "contact" role user has no access to "/dashboard" (that's staff-only)
+      // - send them straight to their own portal instead, or they'd land on a
+      // page that immediately redirects them back to itself.
+      navigate(res.role === "contact" ? "/portal" : "/dashboard");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not log in");
     } finally {
@@ -42,7 +43,7 @@ export default function LoginPage() {
         <p className="field-hint">Staff sign in with their Login ID; contacts sign in with their email.</p>
         <label>
           Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
         {error && <div className="form-error">{error}</div>}
         <button type="submit" disabled={loading}>

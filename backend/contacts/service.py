@@ -85,11 +85,45 @@ def update_contact(db: Session, contact_id: int, payload: ContactUpdate) -> Cont
     if payload.type not in ("Customer", "Vendor", "Both"):
         raise AppError("INVALID_CONTACT_TYPE", "Contact type must be Customer, Vendor, or Both", 400)
     contact = get_contact(db, contact_id)
+
+    # A contact's portal login authenticates by email - if it ever drifts from
+    # the contact's own email (including from before this check existed), the
+    # login becomes reachable only at an address the contact no longer has.
+    # Compared against the login's actual stored email, not just whether this
+    # edit changes it, so a stale mismatch gets repaired the next time someone
+    # saves this contact, not only on the specific edit that caused it.
+    user = db.query(User).filter(User.contact_id == contact_id).first()
+    if user and payload.email != user.email:
+        if not payload.email:
+            raise AppError("EMAIL_REQUIRED", "This contact has portal access - it needs an email", 400)
+        if db.query(User).filter(User.email == payload.email, User.id != user.id).first():
+            raise AppError("EMAIL_TAKEN", "An account with that email already exists", 409)
+        user.email = payload.email
+
     for field, value in payload.model_dump().items():
         setattr(contact, field, value)
     db.commit()
     db.refresh(contact)
     return contact
+
+
+def import_contact_row(db: Session, row: dict) -> None:
+    """One row of a bulk-upload CSV -> one Contact, via the exact same
+    create_contact() validation a manually-typed form goes through - a bad row
+    fails the same way a bad form submission would."""
+    name = (row.get("name") or "").strip()
+    if not name:
+        raise AppError("NAME_REQUIRED", "Name is required", 400)
+    payload = ContactCreate(
+        name=name,
+        type=(row.get("type") or "").strip(),
+        email=(row.get("email") or "").strip() or None,
+        mobile=(row.get("mobile") or "").strip() or None,
+        city=(row.get("city") or "").strip() or None,
+        state=(row.get("state") or "").strip() or None,
+        pincode=(row.get("pincode") or "").strip() or None,
+    )
+    create_contact(db, payload)
 
 
 def archive_contact(db: Session, contact_id: int) -> None:

@@ -15,7 +15,9 @@ from sqlalchemy.orm import Session
 
 import razorpay
 
+from contacts.models import Contact
 from core.config import settings
+from core.email import send_payment_received_email
 from core.errors import AppError
 from journals.posting import post_customer_payment, post_vendor_payment
 from payments.models import Payment
@@ -95,11 +97,20 @@ def pay_customer_invoice(db: Session, invoice_id: int, method: str, amount_cents
     db.add(payment)
     db.commit()
     db.refresh(payment)
+    _notify_payment_received(db, invoice.id, amount_cents)
     return payment
 
 
 def _invoice_paid_cents(db: Session, invoice_id: int) -> int:
     return sum(p.amount_cents for p in db.query(Payment).filter(Payment.customer_invoice_id == invoice_id).all())
+
+
+def _notify_payment_received(db: Session, invoice_id: int, amount_cents: int) -> None:
+    invoice = get_customer_invoice(db, invoice_id)
+    so = db.query(SalesOrder).filter(SalesOrder.id == invoice.sales_order_id).first()
+    customer = db.query(Contact).filter(Contact.id == so.customer_id).first() if so else None
+    if customer and customer.email:
+        send_payment_received_email(customer.email, customer.name, invoice_id, amount_cents)
 
 
 def create_invoice_checkout(db: Session, invoice_id: int, contact_id: int | None) -> dict:
@@ -181,3 +192,4 @@ def handle_razorpay_webhook(db: Session, raw_body: bytes, signature: str | None)
     invoice.status = "paid" if paid_amount + amount_cents >= invoice.amount_cents else "partial"
     db.add(payment)
     db.commit()
+    _notify_payment_received(db, invoice.id, amount_cents)

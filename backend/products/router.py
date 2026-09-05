@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
+from core.csv_import import import_csv_rows
 from core.database import get_db
 from core.security import require_roles
 from products import service
@@ -35,3 +36,9 @@ def archive_product(product_id: int, db: Session = Depends(get_db), _user=Depend
 @router.post("/{product_id}/restore", status_code=204)
 def restore_product(product_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
     service.restore_product(db, product_id)
+
+
+@router.post("/bulk-import")
+async def bulk_import_products(file: UploadFile = File(...), db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    content = await file.read()
+    return import_csv_rows(content, lambda row: service.import_product_row(db, row))

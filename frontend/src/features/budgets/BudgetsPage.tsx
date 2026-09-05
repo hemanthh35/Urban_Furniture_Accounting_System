@@ -3,6 +3,7 @@ import { budgetsApi, type AnalyticAccount, type Budget } from "../../api/budgets
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
+import DatePicker from "../../components/DatePicker";
 import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
 
@@ -121,7 +122,7 @@ export default function BudgetsPage() {
     catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore budget"); }
   }
 
-  const { pageItems, page, totalPages, setPage } = usePagination(budgets);
+  const { pageItems, page, totalPages, setPage } = usePagination([...budgets].sort((a, b) => b.id - a.id));
 
   return (
     <div>
@@ -180,8 +181,8 @@ export default function BudgetsPage() {
               Period
               <input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="e.g. 2026-Q1" required />
             </label>
-            <label>Start Date<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required /></label>
-            <label>End Date<input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required /></label>
+            <label>Start Date<DatePicker value={startDate} onChange={setStartDate} required /></label>
+            <label>End Date<DatePicker value={endDate} onChange={setEndDate} required /></label>
             <label>
               Responsible Person
               <input value={responsiblePerson} onChange={(e) => setResponsiblePerson(e.target.value)} />

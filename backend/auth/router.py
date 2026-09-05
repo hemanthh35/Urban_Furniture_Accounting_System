@@ -9,11 +9,12 @@ from core.security import CurrentUser, require_roles
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/signup", response_model=TokenResponse)
+@router.post("/signup")
 def signup(payload: SignupRequest, db: Session = Depends(get_db)):
     service.signup(db, payload)
-    token, role = service.login(db, LoginRequest(login_id=payload.login_id, password=payload.password))
-    return TokenResponse(access_token=token, role=role)
+    # The account is created deactivated (see auth.service.signup) - no token to
+    # hand back, since it genuinely can't log in until an admin activates it.
+    return {"message": "Account created. An admin needs to activate it in User Access before you can log in."}
 
 
 @router.post("/login", response_model=TokenResponse)

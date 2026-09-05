@@ -7,6 +7,7 @@ export interface Product {
   sales_price_cents: number;
   cost_cents: number;
   category: string | null;
+  gst_percent: number;
   is_archived: boolean;
 }
 
@@ -16,6 +17,7 @@ export interface ProductCreate {
   sales_price_cents: number;
   cost_cents: number;
   category?: string | null;
+  gst_percent?: number;
 }
 
 export type ProductUpdate = ProductCreate;

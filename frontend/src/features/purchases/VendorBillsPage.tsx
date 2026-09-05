@@ -1,14 +1,21 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { purchasesApi, type VendorBill, type VendorBillDetail } from "../../api/purchases";
+import { contactsApi, type Contact } from "../../api/contacts";
+import { productsApi, type Product } from "../../api/products";
 import { reportsApi } from "../../api/reports";
 import { ApiError, BASE_URL } from "../../api/client";
 import Modal from "../../components/Modal";
+import BillPreview from "../../components/BillPreview";
 import Pagination from "../../components/Pagination";
+import DateRangeExport from "../../components/DateRangeExport";
 import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
 
 export default function VendorBillsPage() {
   const [bills, setBills] = useState<VendorBill[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<{ id: number; vendor_id: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingBill, setPayingBill] = useState<VendorBill | null>(null);
   const [viewingBill, setViewingBill] = useState<VendorBillDetail | null>(null);
@@ -20,7 +27,13 @@ export default function VendorBillsPage() {
   async function load() {
     setLoading(true);
     try {
-      setBills(await purchasesApi.listBills());
+      const [billList, orderList, contactList, productList] = await Promise.all([
+        purchasesApi.listBills(), purchasesApi.list(), contactsApi.list(), productsApi.list(),
+      ]);
+      setBills(billList);
+      setPurchaseOrders(orderList);
+      setContacts(contactList);
+      setProducts(productList);
     } finally {
       setLoading(false);
     }
@@ -68,12 +81,20 @@ export default function VendorBillsPage() {
     }
   }
 
-  const { pageItems, page, totalPages, setPage } = usePagination(bills);
+  const { pageItems, page, totalPages, setPage } = usePagination([...bills].sort((a, b) => b.id - a.id));
+  const productName = (productId: number) => products.find((product) => product.id === productId)?.name;
 
   return (
     <div>
       <div className="page-head">
         <h1>Vendor Bills</h1>
+        <DateRangeExport
+          items={bills}
+          getDate={(b) => b.bill_date}
+          filename="vendor-bills.csv"
+          headers={["Bill", "Vendor", "Bill Date", "Amount", "Status"]}
+          toRow={(b) => [b.id, contacts.find((c) => c.id === purchaseOrders.find((po) => po.id === b.purchase_order_id)?.vendor_id)?.name ?? "", b.bill_date, (b.amount_cents / 100).toFixed(2), b.status]}
+        />
       </div>
 
       {loading ? (
@@ -157,30 +178,23 @@ export default function VendorBillsPage() {
       )}
 
       {viewingBill && (
-        <Modal title={`Vendor Bill #${viewingBill.id}`} onClose={() => setViewingBill(null)}>
-          <p>Subtotal: <strong>{formatMoney(viewingBill.subtotal_cents)}</strong> | Tax: <strong>{formatMoney(viewingBill.tax_cents)}</strong> | Total: <strong>{formatMoney(viewingBill.amount_cents)}</strong></p>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Product ID</th><th>Quantity</th><th>Unit Price</th><th>Tax</th></tr></thead>
-              <tbody>{viewingBill.items.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.product_id}</td>
-                  <td>{item.quantity}</td>
-                  <td className="mono">{formatMoney(item.unit_price_cents)}</td>
-                  <td>{item.tax_percent}%</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
-          <h3>Payments</h3>
-          {viewingBill.payments.length === 0 ? <p className="muted">No payments yet.</p> : (
-            <div className="table-wrap">
-              <table><thead><tr><th>Date</th><th>Method</th><th>Amount</th></tr></thead>
-                <tbody>{viewingBill.payments.map((payment) => <tr key={payment.id}><td>{payment.date}</td><td>{payment.method}</td><td className="mono">{formatMoney(payment.amount_cents)}</td></tr>)}</tbody>
-              </table>
-            </div>
-          )}
-        </Modal>
+        <BillPreview
+          kind="Vendor Bill"
+          id={viewingBill.id}
+          reference={`PO-${viewingBill.purchase_order_id}`}
+          date={viewingBill.bill_date}
+          dueDate={viewingBill.due_date}
+          partyLabel="From vendor"
+          partyName={contacts.find((contact) => contact.id === purchaseOrders.find((order) => order.id === viewingBill.purchase_order_id)?.vendor_id)?.name ?? `Purchase Order #${viewingBill.purchase_order_id}`}
+          status={viewingBill.status}
+          subtotalCents={viewingBill.subtotal_cents}
+          taxCents={viewingBill.tax_cents}
+          totalCents={viewingBill.amount_cents}
+          paidCents={viewingBill.payments.reduce((sum, payment) => sum + payment.amount_cents, 0)}
+          lines={viewingBill.items.map((item) => ({ ...item, product_name: productName(item.product_id) }))}
+          payments={viewingBill.payments}
+          onClose={() => setViewingBill(null)}
+        />
       )}
     </div>
   );

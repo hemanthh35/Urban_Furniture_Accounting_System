@@ -9,7 +9,7 @@ export default function ProtectedRoute({ children, roles }: { children: React.Re
     // Redirect to a page THIS role can actually see, not always "/" - "/" is
     // staff-only, so a contact bouncing off a staff page must not land back on
     // another staff page (that would just redirect again, forever).
-    return <Navigate to={role === "contact" ? "/portal" : "/"} replace />;
+    return <Navigate to={role === "contact" ? "/portal" : "/dashboard"} replace />;
   }
   return <>{children}</>;
 }

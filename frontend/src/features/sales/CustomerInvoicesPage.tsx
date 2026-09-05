@@ -1,10 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { salesApi, type CustomerInvoice, type CustomerInvoiceDetail } from "../../api/sales";
 import { purchasesApi, type VendorBill, type VendorBillDetail } from "../../api/purchases";
+import { contactsApi, type Contact } from "../../api/contacts";
+import { productsApi, type Product } from "../../api/products";
 import { reportsApi } from "../../api/reports";
 import { ApiError, BASE_URL } from "../../api/client";
 import Modal from "../../components/Modal";
+import BillPreview from "../../components/BillPreview";
 import Pagination from "../../components/Pagination";
+import DateRangeExport from "../../components/DateRangeExport";
 import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
 import { useAuth } from "../auth/AuthContext";
@@ -21,6 +25,9 @@ export default function CustomerInvoicesPage() {
   const { role } = useAuth();
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([]);
   const [vendorBills, setVendorBills] = useState<VendorBill[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [salesOrders, setSalesOrders] = useState<{ id: number; customer_id: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingInvoice, setPayingInvoice] = useState<CustomerInvoice | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<CustomerInvoiceDetail | null>(null);
@@ -33,9 +40,20 @@ export default function CustomerInvoicesPage() {
   async function load() {
     setLoading(true);
     try {
-      const invoiceList = await salesApi.listInvoices();
-      setInvoices(invoiceList);
-      if (role === "contact") setVendorBills(await purchasesApi.listBills());
+      if (role === "contact") {
+        const [invoiceList, billList] = await Promise.all([salesApi.listInvoices(), purchasesApi.listBills()]);
+        setInvoices(invoiceList);
+        setVendorBills(billList);
+      } else {
+        const [invoiceList, orderList, contactList, productList] = await Promise.all([
+          salesApi.listInvoices(), salesApi.list(), contactsApi.list(), productsApi.list(),
+        ]);
+        setInvoices(invoiceList);
+        setSalesOrders(orderList);
+        setContacts(contactList);
+        setProducts(productList);
+        setVendorBills([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -116,13 +134,23 @@ export default function CustomerInvoicesPage() {
     }
   }
 
-  const invoicesPage = usePagination(invoices);
-  const vendorBillsPage = usePagination(vendorBills);
+  const invoicesPage = usePagination([...invoices].sort((a, b) => b.id - a.id));
+  const vendorBillsPage = usePagination([...vendorBills].sort((a, b) => b.id - a.id));
+  const productName = (productId: number) => products.find((product) => product.id === productId)?.name;
 
   return (
     <div>
       <div className="page-head">
         <h1>{role === "contact" ? "My Invoices" : "Customer Invoices"}</h1>
+        {role !== "contact" && (
+          <DateRangeExport
+            items={invoices}
+            getDate={(inv) => inv.invoice_date}
+            filename="customer-invoices.csv"
+            headers={["Invoice", "Customer", "Invoice Date", "Amount", "Status"]}
+            toRow={(inv) => [inv.id, contacts.find((c) => c.id === salesOrders.find((so) => so.id === inv.sales_order_id)?.customer_id)?.name ?? "", inv.invoice_date, (inv.amount_cents / 100).toFixed(2), inv.status]}
+          />
+        )}
       </div>
 
       {loading ? (
@@ -233,39 +261,43 @@ export default function CustomerInvoicesPage() {
       )}
 
       {viewingInvoice && (
-        <Modal title={`Customer Invoice #${viewingInvoice.id}`} onClose={() => setViewingInvoice(null)}>
-          <p>Subtotal: <strong>{formatMoney(viewingInvoice.subtotal_cents)}</strong> | Tax: <strong>{formatMoney(viewingInvoice.tax_cents)}</strong> | Total: <strong>{formatMoney(viewingInvoice.amount_cents)}</strong></p>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Product ID</th><th>Quantity</th><th>Unit Price</th><th>Tax</th></tr></thead>
-              <tbody>{viewingInvoice.items.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.product_id}</td>
-                  <td>{item.quantity}</td>
-                  <td className="mono">{formatMoney(item.unit_price_cents)}</td>
-                  <td>{item.tax_percent}%</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
-          <h3>Payments</h3>
-          {viewingInvoice.payments.length === 0 ? <p className="muted">No payments yet.</p> : (
-            <div className="table-wrap">
-              <table><thead><tr><th>Date</th><th>Method</th><th>Amount</th></tr></thead>
-                <tbody>{viewingInvoice.payments.map((payment) => <tr key={payment.id}><td>{payment.date}</td><td>{payment.method}</td><td className="mono">{formatMoney(payment.amount_cents)}</td></tr>)}</tbody>
-              </table>
-            </div>
-          )}
-        </Modal>
+        <BillPreview
+          kind="Customer Invoice"
+          id={viewingInvoice.id}
+          reference={`SO-${viewingInvoice.sales_order_id}`}
+          date={viewingInvoice.invoice_date}
+          dueDate={viewingInvoice.due_date}
+          partyLabel="Billed to"
+          partyName={contacts.find((contact) => contact.id === salesOrders.find((order) => order.id === viewingInvoice.sales_order_id)?.customer_id)?.name ?? (role === "contact" ? "Your account" : `Sales Order #${viewingInvoice.sales_order_id}`)}
+          status={viewingInvoice.status}
+          subtotalCents={viewingInvoice.subtotal_cents}
+          taxCents={viewingInvoice.tax_cents}
+          totalCents={viewingInvoice.amount_cents}
+          paidCents={viewingInvoice.payments.reduce((sum, payment) => sum + payment.amount_cents, 0)}
+          lines={viewingInvoice.items.map((item) => ({ ...item, product_name: productName(item.product_id) }))}
+          payments={viewingInvoice.payments}
+          onClose={() => setViewingInvoice(null)}
+        />
       )}
 
       {viewingVendorBill && (
-        <Modal title={`Vendor Bill #${viewingVendorBill.id}`} onClose={() => setViewingVendorBill(null)}>
-          <p>Subtotal: <strong>{formatMoney(viewingVendorBill.subtotal_cents)}</strong> | Tax: <strong>{formatMoney(viewingVendorBill.tax_cents)}</strong> | Total: <strong>{formatMoney(viewingVendorBill.amount_cents)}</strong></p>
-          <div className="table-wrap"><table><thead><tr><th>Product ID</th><th>Quantity</th><th>Unit Price</th><th>Tax</th></tr></thead><tbody>
-            {viewingVendorBill.items.map((item) => <tr key={item.id}><td>{item.product_id}</td><td>{item.quantity}</td><td className="mono">{formatMoney(item.unit_price_cents)}</td><td>{item.tax_percent}%</td></tr>)}
-          </tbody></table></div>
-        </Modal>
+        <BillPreview
+          kind="Vendor Bill"
+          id={viewingVendorBill.id}
+          reference={`PO-${viewingVendorBill.purchase_order_id}`}
+          date={viewingVendorBill.bill_date}
+          dueDate={viewingVendorBill.due_date}
+          partyLabel="From vendor"
+          partyName={`Purchase Order #${viewingVendorBill.purchase_order_id}`}
+          status={viewingVendorBill.status}
+          subtotalCents={viewingVendorBill.subtotal_cents}
+          taxCents={viewingVendorBill.tax_cents}
+          totalCents={viewingVendorBill.amount_cents}
+          paidCents={viewingVendorBill.payments.reduce((sum, payment) => sum + payment.amount_cents, 0)}
+          lines={viewingVendorBill.items.map((item) => ({ ...item, product_name: productName(item.product_id) }))}
+          payments={viewingVendorBill.payments}
+          onClose={() => setViewingVendorBill(null)}
+        />
       )}
     </div>
   );

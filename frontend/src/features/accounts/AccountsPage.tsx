@@ -80,7 +80,7 @@ export default function AccountsPage() {
     catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore account"); }
   }
 
-  const { pageItems, page, totalPages, setPage } = usePagination(accounts);
+  const { pageItems, page, totalPages, setPage } = usePagination([...accounts].sort((a, b) => b.id - a.id));
 
   return (
     <div>

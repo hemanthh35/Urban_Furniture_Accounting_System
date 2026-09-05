@@ -26,5 +26,16 @@ class Settings(BaseSettings):
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
 
+    # Transactional emails (invoice sent, payment received, payment reminders)
+    # via Brevo. Empty by default - sends are skipped (logged, not crashed) if
+    # these aren't set.
+    brevo_api_key: str = ""
+    brevo_from_email: str = ""
+    brevo_from_name: str = "Urban Furniture"
+
+    # Emailed PDF links are relative paths turned into full URLs with this -
+    # same host:port the frontend calls the API on (see frontend/.env).
+    backend_base_url: str = "http://192.168.102.59:8011"
+
 
 settings = Settings()

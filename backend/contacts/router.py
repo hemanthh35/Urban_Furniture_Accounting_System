@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from contacts import service
 from contacts.schemas import ContactCreate, ContactOut, ContactUpdate, GrantPortalAccess
+from core.csv_import import import_csv_rows
 from core.database import get_db
 from core.security import require_roles
 
@@ -52,3 +53,9 @@ def grant_portal_access(contact_id: int, payload: GrantPortalAccess, db: Session
 @router.post("/{contact_id}/reset-portal-password", status_code=204)
 def reset_portal_password(contact_id: int, payload: GrantPortalAccess, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
     service.reset_portal_password(db, contact_id, payload.password)
+
+
+@router.post("/bulk-import")
+async def bulk_import_contacts(file: UploadFile = File(...), db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    content = await file.read()
+    return import_csv_rows(content, lambda row: service.import_contact_row(db, row))

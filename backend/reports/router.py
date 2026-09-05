@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -63,7 +63,11 @@ def download_customer_invoice_pdf(invoice_id: int, token: str, db: Session = Dep
         raise HTTPException(status_code=403, detail="Invalid or expired download link")
     invoice = get_customer_invoice(db, invoice_id)
     pdf_bytes = build_customer_invoice_pdf(db, invoice)
-    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"inline; filename=invoice-{invoice_id}.pdf"})
+    # Invoice id + date + the exact second it was downloaded - two people
+    # downloading the same invoice twice never collide on a filename.
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    filename = f"Invoice-{invoice_id}-{invoice.invoice_date}-{stamp}.pdf"
+    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{filename}"'})
 
 
 @router.get("/vendor-bills/{bill_id}/pdf-link")
@@ -79,4 +83,6 @@ def download_vendor_bill_pdf(bill_id: int, token: str, db: Session = Depends(get
         raise HTTPException(status_code=403, detail="Invalid or expired download link")
     bill = get_vendor_bill(db, bill_id)
     pdf_bytes = build_vendor_bill_pdf(db, bill)
-    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"inline; filename=bill-{bill_id}.pdf"})
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    filename = f"Bill-{bill_id}-{bill.bill_date}-{stamp}.pdf"
+    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{filename}"'})

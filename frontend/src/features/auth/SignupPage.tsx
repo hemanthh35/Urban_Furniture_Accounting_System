@@ -1,12 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { authApi } from "../../api/auth";
 import { ApiError } from "../../api/client";
-import { useAuth } from "./AuthContext";
+import PasswordInput from "../../components/PasswordInput";
 
 export default function SignupPage() {
-  const { login } = useAuth();
-  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [loginId, setLoginId] = useState("");
   const [email, setEmail] = useState("");
@@ -14,6 +12,7 @@ export default function SignupPage() {
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -21,14 +20,29 @@ export default function SignupPage() {
     setLoading(true);
     try {
       if (password !== confirmation) { setError("Passwords do not match"); setLoading(false); return; }
-      const res = await authApi.signup({ name, login_id: loginId, email, password, password_confirmation: confirmation, role: "user" });
-      login(res.access_token, res.role);
-      navigate("/");
+      // The account is created deactivated - an admin has to turn it on in User
+      // Access before it can log in, so there's nothing to log in with yet.
+      await authApi.signup({ name, login_id: loginId, email, password, password_confirmation: confirmation, role: "user" });
+      setSubmitted(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not sign up");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (submitted) {
+    return (
+      <div className="auth-screen">
+        <div className="auth-card">
+          <h1>Account Created</h1>
+          <p className="auth-sub">An admin needs to activate your account in User Access before you can log in. Check back once they have.</p>
+          <p className="auth-footer">
+            <Link to="/login">Back to sign in</Link>
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -47,10 +61,13 @@ export default function SignupPage() {
         </label>
         <label>
           Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
+          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
         </label>
         <p className="field-hint">At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.</p>
-        <label>Re-enter Password<input type="password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} required /></label>
+        <label>
+          Re-enter Password
+          <PasswordInput value={confirmation} onChange={(e) => setConfirmation(e.target.value)} required />
+        </label>
         {error && <div className="form-error">{error}</div>}
         <button type="submit" disabled={loading}>
           {loading ? "Creating..." : "Sign Up"}

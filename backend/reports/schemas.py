@@ -38,6 +38,14 @@ class BudgetReport(BaseModel):
 
 class DashboardSummary(BaseModel):
     total_assets_cents: int
+    total_liabilities_cents: int
+    total_capital_cents: int
+    total_income_cents: int
+    total_expenses_cents: int
+    top_expense_account: str | None
+    top_expense_cents: int
+    top_income_account: str | None
+    top_income_cents: int
     net_profit_cents: int
     outstanding_invoices_cents: int
     outstanding_bills_cents: int
@@ -45,3 +53,5 @@ class DashboardSummary(BaseModel):
     units_in_stock: int
     budget_planned_cents: int
     budget_actual_cents: int
+    draft_purchase_orders: int
+    draft_sales_orders: int

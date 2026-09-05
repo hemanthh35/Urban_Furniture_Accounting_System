@@ -4,6 +4,8 @@ import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
 import { usePagination } from "../../hooks/usePagination";
+import PasswordInput from "../../components/PasswordInput";
+import { downloadCsv } from "../../utils/export";
 
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -132,13 +134,22 @@ export default function ContactsPage() {
     catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore contact"); }
   }
 
-  const { pageItems, page, totalPages, setPage } = usePagination(contacts);
+  const { pageItems, page, totalPages, setPage } = usePagination([...contacts].sort((a, b) => b.id - a.id));
 
   return (
     <div>
       <div className="page-head">
         <h1>Contacts</h1>
-        <div><button className="secondary" onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Hide archived" : "Show archived"}</button>{" "}<button onClick={openNew}>+ New Contact</button></div>
+        <div>
+          <button className="secondary" onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Hide archived" : "Show archived"}</button>{" "}
+          <button
+            className="secondary"
+            onClick={() => downloadCsv("contacts.csv", ["Name", "Type", "Email", "Mobile", "City", "State", "Pincode"], contacts.map((c) => [c.name, c.type, c.email ?? "", c.mobile ?? "", c.city ?? "", c.state ?? "", c.pincode ?? ""]))}
+          >
+            Export CSV
+          </button>{" "}
+          <button onClick={openNew}>+ New Contact</button>
+        </div>
       </div>
 
       {loading ? (
@@ -229,7 +240,7 @@ export default function ContactsPage() {
                   <>
                     <label>
                       New portal password
-                      <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} minLength={8} required />
+                      <PasswordInput value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} minLength={8} required />
                     </label>
                     <p className="field-hint">At least 8 characters.</p>
                   </>
@@ -245,7 +256,7 @@ export default function ContactsPage() {
                   <>
                     <label>
                       Portal password
-                      <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} minLength={8} required />
+                      <PasswordInput value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} minLength={8} required />
                     </label>
                     <p className="field-hint">At least 8 characters.</p>
                   </>

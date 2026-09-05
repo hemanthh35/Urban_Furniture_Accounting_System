@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { authApi } from "../../api/auth";
 import { ApiError } from "../../api/client";
+import PasswordInput from "../../components/PasswordInput";
 
 export default function ChangePasswordPage() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -31,8 +32,8 @@ export default function ChangePasswordPage() {
       <div className="page-head"><h1>Change Password</h1></div>
       <div className="form-card">
         <form onSubmit={handleSubmit}>
-          <label>Current Password<input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required /></label>
-          <label>New Password<input type="password" minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required /></label>
+          <label>Current Password<PasswordInput value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required /></label>
+          <label>New Password<PasswordInput minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required /></label>
           <p className="field-hint">At least 8 characters.</p>
           {message && <div className="success-message">{message}</div>}
           {error && <div className="form-error">{error}</div>}

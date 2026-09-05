@@ -3,6 +3,7 @@ import { authApi, type User } from "../../api/auth";
 import { ApiError } from "../../api/client";
 import Pagination from "../../components/Pagination";
 import { usePagination } from "../../hooks/usePagination";
+import PasswordInput from "../../components/PasswordInput";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -35,7 +36,7 @@ export default function UsersPage() {
     } catch (err) { setError(err instanceof ApiError ? err.message : "Could not create user"); }
   }
 
-  const { pageItems, page, totalPages, setPage } = usePagination(users);
+  const { pageItems, page, totalPages, setPage } = usePagination([...users].sort((a, b) => b.id - a.id));
 
   return <div>
     <div className="page-head"><div><h1>User Access</h1><p className="page-sub">Only an admin can activate or deactivate login accounts.</p></div></div>
@@ -47,7 +48,7 @@ export default function UsersPage() {
       <p className="field-hint">6-12 characters.</p>
       <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
       <label>Role<select value={role} onChange={(e) => setRole(e.target.value)}><option value="user">Accountant</option><option value="administrator">Administrator</option></select></label>
-      <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required /></label>
+      <label>Password<PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required /></label>
       <p className="field-hint">At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.</p>
       <button type="submit">Create</button>
     </form>

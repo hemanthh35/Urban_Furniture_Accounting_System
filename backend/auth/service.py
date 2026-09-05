@@ -21,7 +21,11 @@ def signup(db: Session, payload: SignupRequest) -> User:
     if db.query(User).filter(or_(User.email == payload.email, User.login_id == payload.login_id)).first():
         raise AppError("EMAIL_TAKEN", "An account with that email already exists", 409)
 
-    user = User(name=payload.name.strip(), login_id=payload.login_id, email=payload.email, password_hash=hash_password(payload.password), role="accountant")
+    # Self-service signup creates a real staff account (Contacts, Products, every
+    # transaction) - so it starts deactivated. An admin has to actively turn it
+    # on in User Access before it can touch anything, same trust boundary as a
+    # brand-new hire not getting a badge until someone signs off on them.
+    user = User(name=payload.name.strip(), login_id=payload.login_id, email=payload.email, password_hash=hash_password(payload.password), role="accountant", is_active=False)
     db.add(user)
     db.commit()
     db.refresh(user)

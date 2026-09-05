@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./features/auth/AuthContext";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
+import LandingPage from "./features/landing/LandingPage";
 import LoginPage from "./features/auth/LoginPage";
 import SignupPage from "./features/auth/SignupPage";
 import Layout from "./components/Layout";
@@ -22,6 +23,7 @@ import StockReportPage from "./features/stock/StockReportPage";
 import ChangePasswordPage from "./features/auth/ChangePasswordPage";
 import UsersPage from "./features/auth/UsersPage";
 import JobsPage from "./features/jobs/JobsPage";
+import BulkImportPage from "./features/imports/BulkImportPage";
 
 const STAFF = ["admin", "accountant"];
 
@@ -38,6 +40,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
 
@@ -55,7 +58,7 @@ export default function App() {
           <Route path="/change-password" element={<ProtectedRoute><Layout><ChangePasswordPage /></Layout></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute roles={["admin"]}><Layout><UsersPage /></Layout></ProtectedRoute>} />
 
-          <Route path="/" element={<Staff><DashboardPage /></Staff>} />
+          <Route path="/dashboard" element={<Staff><DashboardPage /></Staff>} />
           <Route path="/contacts" element={<Staff><ContactsPage /></Staff>} />
           <Route path="/products" element={<Staff><ProductsPage /></Staff>} />
           <Route path="/accounts" element={<Staff><AccountsPage /></Staff>} />
@@ -71,6 +74,7 @@ export default function App() {
           <Route path="/reports/profit-and-loss" element={<Staff><ProfitAndLossPage /></Staff>} />
           <Route path="/reports/budget-report" element={<Staff><BudgetReportPage /></Staff>} />
           <Route path="/jobs" element={<Staff><JobsPage /></Staff>} />
+          <Route path="/bulk-import" element={<Staff><BulkImportPage /></Staff>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

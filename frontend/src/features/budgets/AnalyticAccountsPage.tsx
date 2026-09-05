@@ -80,7 +80,7 @@ export default function AnalyticAccountsPage() {
     catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore analytic account"); }
   }
 
-  const { pageItems, page, totalPages, setPage } = usePagination(items);
+  const { pageItems, page, totalPages, setPage } = usePagination([...items].sort((a, b) => b.id - a.id));
 
   return (
     <div>

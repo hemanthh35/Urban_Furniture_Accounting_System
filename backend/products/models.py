@@ -18,4 +18,5 @@ class Product(Base):
     sales_price_cents = Column(Integer, nullable=False)  # what we charge a customer
     cost_cents = Column(Integer, nullable=False)  # what it costs us to buy/produce
     category = Column(String(100), nullable=True)
+    gst_percent = Column(Integer, nullable=False, default=0)
     is_archived = Column(Boolean, nullable=False, default=False)
