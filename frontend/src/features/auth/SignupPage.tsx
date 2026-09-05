@@ -36,15 +36,20 @@ export default function SignupPage() {
       <form className="auth-card" onSubmit={handleSubmit}>
         <h1>Create Account</h1>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></label>
-        <label>Login ID<input value={loginId} onChange={(e) => setLoginId(e.target.value)} minLength={6} maxLength={12} required /></label>
+        <label>
+          Login ID
+          <input value={loginId} onChange={(e) => setLoginId(e.target.value)} minLength={6} maxLength={12} required />
+        </label>
+        <p className="field-hint">6-12 characters.</p>
         <label>
           Email
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
         <label>
           Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
         </label>
+        <p className="field-hint">At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.</p>
         <label>Re-enter Password<input type="password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} required /></label>
         {error && <div className="form-error">{error}</div>}
         <button type="submit" disabled={loading}>

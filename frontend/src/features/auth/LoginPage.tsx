@@ -36,9 +36,10 @@ export default function LoginPage() {
         <h1>Urban Furniture</h1>
         <p className="auth-sub">Accounting System</p>
         <label>
-          Login ID
+          Login ID or Email
           <input value={loginId} onChange={(e) => setLoginId(e.target.value)} required autoFocus />
         </label>
+        <p className="field-hint">Staff sign in with their Login ID; contacts sign in with their email.</p>
         <label>
           Password
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />

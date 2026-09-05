@@ -27,6 +27,10 @@ class ContactUpdate(BaseModel):
     profile_image: str | None = None
 
 
+class GrantPortalAccess(BaseModel):
+    password: str
+
+
 class ContactOut(BaseModel):
     id: int
     name: str

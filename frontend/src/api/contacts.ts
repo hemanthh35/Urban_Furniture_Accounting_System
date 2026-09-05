@@ -33,4 +33,11 @@ export const contactsApi = {
   update: (id: number, payload: ContactUpdate) => request<Contact>(`/contacts/${id}`, { method: "PUT", body: payload }),
   archive: (id: number) => request<void>(`/contacts/${id}/archive`, { method: "POST" }),
   restore: (id: number) => request<void>(`/contacts/${id}/restore`, { method: "POST" }),
+
+  // Portal access can also be granted after the fact, not just at creation.
+  portalStatus: (id: number) => request<{ has_login: boolean }>(`/contacts/${id}/portal-status`),
+  grantPortalAccess: (id: number, password: string) =>
+    request<void>(`/contacts/${id}/grant-portal-access`, { method: "POST", body: { password } }),
+  resetPortalPassword: (id: number, password: string) =>
+    request<void>(`/contacts/${id}/reset-portal-password`, { method: "POST", body: { password } }),
 };

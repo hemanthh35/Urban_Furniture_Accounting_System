@@ -44,9 +44,11 @@ export default function UsersPage() {
       <h2>Create User</h2>
       <label>Name<input value={name} onChange={(e) => setName(e.target.value)} required /></label>
       <label>Login ID<input value={loginId} onChange={(e) => setLoginId(e.target.value)} minLength={6} maxLength={12} required /></label>
+      <p className="field-hint">6-12 characters.</p>
       <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-      <label>Role<select value={role} onChange={(e) => setRole(e.target.value)}><option value="user">User</option><option value="administrator">Administrator</option></select></label>
+      <label>Role<select value={role} onChange={(e) => setRole(e.target.value)}><option value="user">Accountant</option><option value="administrator">Administrator</option></select></label>
       <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required /></label>
+      <p className="field-hint">At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.</p>
       <button type="submit">Create</button>
     </form>
     <div className="table-wrap"><table><thead><tr><th>Email</th><th>Role</th><th>Status</th><th /></tr></thead><tbody>

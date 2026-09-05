@@ -25,6 +25,7 @@ export default function ContactsPage() {
   const [profileImage, setProfileImage] = useState("");
   const [createLogin, setCreateLogin] = useState(false);
   const [loginPassword, setLoginPassword] = useState("");
+  const [hasPortalLogin, setHasPortalLogin] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -56,10 +57,11 @@ export default function ContactsPage() {
   function openNew() {
     setEditingContact(null);
     resetForm();
+    setHasPortalLogin(false);
     setModalOpen(true);
   }
 
-  function openEdit(contact: Contact) {
+  async function openEdit(contact: Contact) {
     setEditingContact(contact);
     setName(contact.name);
     setType(contact.type);
@@ -73,6 +75,8 @@ export default function ContactsPage() {
     setLoginPassword("");
     setFormError(null);
     setModalOpen(true);
+    const { has_login } = await contactsApi.portalStatus(contact.id);
+    setHasPortalLogin(has_login);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -93,6 +97,13 @@ export default function ContactsPage() {
       };
       if (editingContact) {
         await contactsApi.update(editingContact.id, payload);
+        if (createLogin) {
+          if (hasPortalLogin) {
+            await contactsApi.resetPortalPassword(editingContact.id, loginPassword);
+          } else {
+            await contactsApi.grantPortalAccess(editingContact.id, loginPassword);
+          }
+        }
       } else {
         await contactsApi.create(payload);
       }
@@ -208,15 +219,38 @@ export default function ContactsPage() {
               Profile image URL
               <input type="url" value={profileImage} onChange={(e) => setProfileImage(e.target.value)} placeholder="https://..." />
             </label>
-            <label className="checkbox-label">
-              <input type="checkbox" checked={createLogin} onChange={(e) => setCreateLogin(e.target.checked)} />
-              Give this contact portal access (they can log in to see their own invoices/bills)
-            </label>
-            {!editingContact && createLogin && (
-              <label>
-                Portal password
-                <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required={createLogin} />
-              </label>
+            {editingContact && hasPortalLogin ? (
+              <>
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={createLogin} onChange={(e) => setCreateLogin(e.target.checked)} />
+                  Reset this contact's portal password
+                </label>
+                {createLogin && (
+                  <>
+                    <label>
+                      New portal password
+                      <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} minLength={8} required />
+                    </label>
+                    <p className="field-hint">At least 8 characters.</p>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={createLogin} onChange={(e) => setCreateLogin(e.target.checked)} />
+                  Give this contact portal access (they can log in to see their own invoices/bills)
+                </label>
+                {createLogin && (
+                  <>
+                    <label>
+                      Portal password
+                      <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} minLength={8} required />
+                    </label>
+                    <p className="field-hint">At least 8 characters.</p>
+                  </>
+                )}
+              </>
             )}
             {formError && <div className="form-error">{formError}</div>}
             <div className="modal-actions">

@@ -33,6 +33,7 @@ export default function ChangePasswordPage() {
         <form onSubmit={handleSubmit}>
           <label>Current Password<input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required /></label>
           <label>New Password<input type="password" minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required /></label>
+          <p className="field-hint">At least 8 characters.</p>
           {message && <div className="success-message">{message}</div>}
           {error && <div className="form-error">{error}</div>}
           <button type="submit" disabled={saving}>{saving ? "Saving..." : "Change Password"}</button>

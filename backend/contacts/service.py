@@ -24,6 +24,20 @@ def get_contact(db: Session, contact_id: int) -> Contact:
     return contact
 
 
+def _create_portal_login(db: Session, contact: Contact, email: str | None, password: str) -> None:
+    if len(password) < 8:
+        raise AppError("WEAK_PASSWORD", "Portal password must be at least 8 characters", 400)
+    if not email:
+        raise AppError("EMAIL_REQUIRED", "A contact needs an email to also get a login", 400)
+    if db.query(User).filter(User.email == email).first():
+        raise AppError("EMAIL_TAKEN", "An account with that email already exists", 409)
+    db.add(User(email=email, password_hash=hash_password(password), role="contact", contact_id=contact.id))
+
+
+def has_portal_login(db: Session, contact_id: int) -> bool:
+    return db.query(User).filter(User.contact_id == contact_id).first() is not None
+
+
 def create_contact(db: Session, payload: ContactCreate) -> Contact:
     if payload.type not in ("Customer", "Vendor", "Both"):
         raise AppError("INVALID_CONTACT_TYPE", "Contact type must be Customer, Vendor, or Both", 400)
@@ -36,17 +50,35 @@ def create_contact(db: Session, payload: ContactCreate) -> Contact:
     # happens if a password was actually given, since a Contact doesn't need a
     # login by default (e.g. a vendor you never give portal access to).
     if payload.create_login_password:
-        if len(payload.create_login_password) < 8:
-            raise AppError("WEAK_PASSWORD", "Portal password must be at least 8 characters", 400)
-        if not payload.email:
-            raise AppError("EMAIL_REQUIRED", "A contact needs an email to also get a login", 400)
-        if db.query(User).filter(User.email == payload.email).first():
-            raise AppError("EMAIL_TAKEN", "An account with that email already exists", 409)
-        db.add(User(email=payload.email, password_hash=hash_password(payload.create_login_password), role="contact", contact_id=contact.id))
+        _create_portal_login(db, contact, payload.email, payload.create_login_password)
 
     db.commit()
     db.refresh(contact)
     return contact
+
+
+def grant_portal_access(db: Session, contact_id: int, password: str) -> None:
+    """Same login-creation path as create_contact's create_login_password, for a
+    contact that already exists - covers the very normal case of 'we added this
+    customer months ago, now let's give them portal access'."""
+    contact = get_contact(db, contact_id)
+    if has_portal_login(db, contact_id):
+        raise AppError("ALREADY_HAS_LOGIN", "This contact already has portal access", 409)
+    _create_portal_login(db, contact, contact.email, password)
+    db.commit()
+
+
+def reset_portal_password(db: Session, contact_id: int, new_password: str) -> None:
+    """Admin-side reset - unlike auth.service.change_password, doesn't need the
+    contact's current password, since the whole point is they can't log in to
+    provide one (forgot it, never got it, etc)."""
+    if len(new_password) < 8:
+        raise AppError("WEAK_PASSWORD", "Portal password must be at least 8 characters", 400)
+    user = db.query(User).filter(User.contact_id == contact_id).first()
+    if not user:
+        raise AppError("NO_PORTAL_LOGIN", "This contact does not have portal access yet", 404)
+    user.password_hash = hash_password(new_password)
+    db.commit()
 
 
 def update_contact(db: Session, contact_id: int, payload: ContactUpdate) -> Contact:

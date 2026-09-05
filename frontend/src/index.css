@@ -46,6 +46,7 @@ input:focus, select:focus { border-color: var(--fill); box-shadow: 0 0 0 3px rgb
 label { display: flex; flex-direction: column; gap: .42em; color: var(--ink-soft); font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 1rem; }
 .checkbox-label { flex-direction: row; align-items: center; gap: .6em; text-transform: none; letter-spacing: 0; font-size: .82rem; font-weight: 500; }
 .checkbox-label input { width: auto; accent-color: var(--fill); }
+.field-hint { color: var(--ink-faint); font-size: .76rem; font-weight: 400; text-transform: none; letter-spacing: 0; margin: -.7rem 0 1rem; }
 
 .item-rows-label { color: var(--ink-soft); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: .6rem; }
 .item-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 8px; align-items: center; }
