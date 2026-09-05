@@ -1,0 +1,21 @@
+from sqlalchemy import Column, Integer, String, Date, ForeignKey
+from core.database import Base
+
+PAYMENT_METHODS = ("Cash", "Bank")
+
+
+class Payment(Base):
+    """Step 3 of both flows: 'register payment' against a bill or an invoice, via
+    Cash or Bank. Exactly one of vendor_bill_id / customer_invoice_id is set on any
+    given Payment - never both, never neither - since a single payment always
+    settles one specific bill or one specific invoice per the problem statement."""
+
+    __tablename__ = "payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vendor_bill_id = Column(Integer, ForeignKey("vendor_bills.id"), nullable=True)
+    customer_invoice_id = Column(Integer, ForeignKey("customer_invoices.id"), nullable=True)
+    method = Column(String(20), nullable=False)  # Cash | Bank
+    amount_cents = Column(Integer, nullable=False)
+    date = Column(Date, nullable=False)
+    journal_entry_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=True)
