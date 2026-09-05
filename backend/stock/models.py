@@ -14,3 +14,4 @@ class StockMovement(Base):
     source_id = Column(Integer, nullable=False)
     movement_date = Column(Date, nullable=False)
     quantity_delta = Column(Integer, nullable=False)
+    reason = Column(String(255), nullable=True)

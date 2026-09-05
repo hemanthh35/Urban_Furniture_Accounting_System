@@ -10,6 +10,7 @@ export default function ContactsPage() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   // Form fields - matches the Contact Master fields exactly from the problem statement.
   const [name, setName] = useState("");
@@ -19,13 +20,14 @@ export default function ContactsPage() {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [pincode, setPincode] = useState("");
+  const [profileImage, setProfileImage] = useState("");
   const [createLogin, setCreateLogin] = useState(false);
   const [loginPassword, setLoginPassword] = useState("");
 
   async function load() {
     setLoading(true);
     try {
-      setContacts(await contactsApi.list());
+      setContacts(await contactsApi.list(showArchived));
     } finally {
       setLoading(false);
     }
@@ -33,7 +35,7 @@ export default function ContactsPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [showArchived]);
 
   function resetForm() {
     setName("");
@@ -43,6 +45,7 @@ export default function ContactsPage() {
     setCity("");
     setState("");
     setPincode("");
+    setProfileImage("");
     setCreateLogin(false);
     setLoginPassword("");
     setFormError(null);
@@ -63,6 +66,7 @@ export default function ContactsPage() {
     setCity(contact.city ?? "");
     setState(contact.state ?? "");
     setPincode(contact.pincode ?? "");
+    setProfileImage(contact.profile_image ?? "");
     setCreateLogin(false);
     setLoginPassword("");
     setFormError(null);
@@ -82,6 +86,7 @@ export default function ContactsPage() {
         city: city || null,
         state: state || null,
         pincode: pincode || null,
+        profile_image: profileImage || null,
         create_login_password: createLogin ? loginPassword : null,
       };
       if (editingContact) {
@@ -109,11 +114,16 @@ export default function ContactsPage() {
     }
   }
 
+  async function handleRestore(contact: Contact) {
+    try { await contactsApi.restore(contact.id); await load(); }
+    catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore contact"); }
+  }
+
   return (
     <div>
       <div className="page-head">
         <h1>Contacts</h1>
-        <button onClick={openNew}>+ New Contact</button>
+        <div><button className="secondary" onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Hide archived" : "Show archived"}</button>{" "}<button onClick={openNew}>+ New Contact</button></div>
       </div>
 
       {loading ? (
@@ -130,6 +140,7 @@ export default function ContactsPage() {
                 <th>Email</th>
                 <th>Mobile</th>
                 <th>City</th>
+                <th>Photo</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -141,9 +152,10 @@ export default function ContactsPage() {
                   <td className="muted">{c.email ?? "-"}</td>
                   <td className="muted">{c.mobile ?? "-"}</td>
                   <td className="muted">{c.city ?? "-"}</td>
+                  <td>{c.profile_image ? <img src={c.profile_image} alt="" width="32" height="32" /> : "-"}</td>
                   <td>
-                    <button className="secondary" onClick={() => openEdit(c)}>Edit</button>{" "}
-                    <button className="secondary" onClick={() => handleArchive(c)}>Archive</button>
+                    {!c.is_archived && <><button className="secondary" onClick={() => openEdit(c)}>Edit</button>{" "}<button className="secondary" onClick={() => handleArchive(c)}>Archive</button></>}
+                    {c.is_archived && <button className="secondary" onClick={() => handleRestore(c)}>Restore</button>}
                   </td>
                 </tr>
               ))}
@@ -186,6 +198,10 @@ export default function ContactsPage() {
             <label>
               Pincode
               <input value={pincode} onChange={(e) => setPincode(e.target.value)} />
+            </label>
+            <label>
+              Profile image URL
+              <input type="url" value={profileImage} onChange={(e) => setProfileImage(e.target.value)} placeholder="https://..." />
             </label>
             <label className="checkbox-label">
               <input type="checkbox" checked={createLogin} onChange={(e) => setCreateLogin(e.target.checked)} />

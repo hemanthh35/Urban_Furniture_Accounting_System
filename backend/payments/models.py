@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey
+from sqlalchemy import CheckConstraint, Column, Integer, String, Date, ForeignKey
 from core.database import Base
 
 PAYMENT_METHODS = ("Cash", "Bank")
@@ -19,3 +19,9 @@ class Payment(Base):
     amount_cents = Column(Integer, nullable=False)
     date = Column(Date, nullable=False)
     journal_entry_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("(vendor_bill_id IS NOT NULL) <> (customer_invoice_id IS NOT NULL)", name="ck_payment_one_document"),
+        CheckConstraint("method IN ('Cash', 'Bank')", name="ck_payment_method"),
+        CheckConstraint("amount_cents > 0", name="ck_payment_amount_positive"),
+    )

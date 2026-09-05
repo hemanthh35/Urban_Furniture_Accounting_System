@@ -10,13 +10,14 @@ export default function AnalyticAccountsPage() {
   const [editingItem, setEditingItem] = useState<AnalyticAccount | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState("Income");
 
   async function load() {
     setLoading(true);
     try {
-      setItems(await budgetsApi.listAnalyticAccounts());
+      setItems(await budgetsApi.listAnalyticAccounts(showArchived));
     } finally {
       setLoading(false);
     }
@@ -24,7 +25,7 @@ export default function AnalyticAccountsPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [showArchived]);
 
   function openNew() {
     setEditingItem(null);
@@ -72,6 +73,11 @@ export default function AnalyticAccountsPage() {
     }
   }
 
+  async function handleRestore(item: AnalyticAccount) {
+    try { await budgetsApi.restoreAnalyticAccount(item.id); await load(); }
+    catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore analytic account"); }
+  }
+
   return (
     <div>
       <div className="page-head">
@@ -79,7 +85,7 @@ export default function AnalyticAccountsPage() {
           <h1>Analytic Accounts</h1>
           <p className="page-sub">Tags for grouping income/expenses by project or department, used by Budgets.</p>
         </div>
-        <button onClick={openNew}>+ New Analytic Account</button>
+        <div><button className="secondary" onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Hide archived" : "Show archived"}</button>{" "}<button onClick={openNew}>+ New Analytic Account</button></div>
       </div>
 
       {loading ? (
@@ -100,8 +106,8 @@ export default function AnalyticAccountsPage() {
                   <td>{a.name}</td>
                   <td>{a.type}</td>
                   <td>
-                    <button className="secondary" onClick={() => openEdit(a)}>Edit</button>{" "}
-                    <button className="secondary" onClick={() => handleArchive(a)}>Archive</button>
+                    {!a.is_archived && <><button className="secondary" onClick={() => openEdit(a)}>Edit</button>{" "}<button className="secondary" onClick={() => handleArchive(a)}>Archive</button></>}
+                    {a.is_archived && <button className="secondary" onClick={() => handleRestore(a)}>Restore</button>}
                   </td>
                 </tr>
               ))}

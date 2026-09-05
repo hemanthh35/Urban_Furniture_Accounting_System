@@ -10,8 +10,11 @@ from core.errors import AppError
 from core.security import hash_password
 
 
-def list_contacts(db: Session) -> list[Contact]:
-    return db.query(Contact).filter(Contact.is_archived.is_(False)).all()
+def list_contacts(db: Session, include_archived: bool = False) -> list[Contact]:
+    query = db.query(Contact)
+    if not include_archived:
+        query = query.filter(Contact.is_archived.is_(False))
+    return query.all()
 
 
 def get_contact(db: Session, contact_id: int) -> Contact:
@@ -22,6 +25,8 @@ def get_contact(db: Session, contact_id: int) -> Contact:
 
 
 def create_contact(db: Session, payload: ContactCreate) -> Contact:
+    if payload.type not in ("Customer", "Vendor", "Both"):
+        raise AppError("INVALID_CONTACT_TYPE", "Contact type must be Customer, Vendor, or Both", 400)
     data = payload.model_dump(exclude={"create_login_password"})
     contact = Contact(**data)
     db.add(contact)
@@ -31,6 +36,8 @@ def create_contact(db: Session, payload: ContactCreate) -> Contact:
     # happens if a password was actually given, since a Contact doesn't need a
     # login by default (e.g. a vendor you never give portal access to).
     if payload.create_login_password:
+        if len(payload.create_login_password) < 8:
+            raise AppError("WEAK_PASSWORD", "Portal password must be at least 8 characters", 400)
         if not payload.email:
             raise AppError("EMAIL_REQUIRED", "A contact needs an email to also get a login", 400)
         if db.query(User).filter(User.email == payload.email).first():
@@ -43,6 +50,8 @@ def create_contact(db: Session, payload: ContactCreate) -> Contact:
 
 
 def update_contact(db: Session, contact_id: int, payload: ContactUpdate) -> Contact:
+    if payload.type not in ("Customer", "Vendor", "Both"):
+        raise AppError("INVALID_CONTACT_TYPE", "Contact type must be Customer, Vendor, or Both", 400)
     contact = get_contact(db, contact_id)
     for field, value in payload.model_dump().items():
         setattr(contact, field, value)
@@ -54,4 +63,10 @@ def update_contact(db: Session, contact_id: int, payload: ContactUpdate) -> Cont
 def archive_contact(db: Session, contact_id: int) -> None:
     contact = get_contact(db, contact_id)
     contact.is_archived = True
+    db.commit()
+
+
+def restore_contact(db: Session, contact_id: int) -> None:
+    contact = get_contact(db, contact_id)
+    contact.is_archived = False
     db.commit()

@@ -6,19 +6,27 @@ every number in the ledger is correct."""
 
 from datetime import date
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from accounts.models import Account
 from budgets.models import AnalyticAccount, Budget
+from core.errors import AppError
 from journals.models import JournalEntry, JournalEntryLine
-from reports.schemas import AccountBalance, BalanceSheet, BudgetReport, BudgetReportRow, ProfitAndLoss
+from reports.schemas import AccountBalance, BalanceSheet, BudgetReport, BudgetReportRow, DashboardSummary, ProfitAndLoss
+from payments.models import Payment
+from products.models import Product
+from purchases.models import VendorBill
+from sales.models import CustomerInvoice
+from stock.models import StockMovement
 
 
 def _account_balances(db: Session, account_type: str, from_date: date | None, to_date: date | None) -> list[tuple[Account, int, int]]:
     """Returns (account, total_debit, total_credit) for every account of one type
     that has at least one journal line - accounts nobody's used yet don't clutter
     the report."""
+    if from_date and to_date and from_date > to_date:
+        raise AppError("INVALID_REPORT_DATES", "From date cannot be after to date", 400)
     query = (
         db.query(
             Account,
@@ -71,13 +79,15 @@ def profit_and_loss(db: Session, from_date: date | None = None, to_date: date | 
 
 
 def budget_report(db: Session, from_date: date | None = None, to_date: date | None = None) -> BudgetReport:
-    """Problem statement: 'Budget Report - Provides an overview of the planned
-    budget.' Just a listing, not a planned-vs-actual comparison - the spec never
-    asks transactions to be tagged with an analytic account, so there's no 'actual
-    spend per analytic account' to compare against."""
-    # Budget periods are labels such as 2026-Q1, so date filters do not apply
-    # until budgets have real start/end dates. Keep the endpoint consistent.
-    rows = db.query(Budget, AnalyticAccount).join(AnalyticAccount, Budget.analytic_account_id == AnalyticAccount.id).all()
+    """Show planned amounts beside actual tagged journal activity."""
+    if from_date and to_date and from_date > to_date:
+        raise AppError("INVALID_REPORT_DATES", "From date cannot be after to date", 400)
+    query = db.query(Budget, AnalyticAccount).join(AnalyticAccount, Budget.analytic_account_id == AnalyticAccount.id).filter(Budget.is_archived.is_(False))
+    if from_date:
+        query = query.filter(or_(Budget.end_date.is_(None), Budget.end_date >= from_date))
+    if to_date:
+        query = query.filter(or_(Budget.start_date.is_(None), Budget.start_date <= to_date))
+    rows = query.all()
     report_rows = []
     for b, aa in rows:
         actual_query = (
@@ -106,7 +116,37 @@ def budget_report(db: Session, from_date: date | None = None, to_date: date | No
             analytic_account_name=aa.name,
             planned_amount_cents=b.planned_amount_cents,
             actual_amount_cents=actual,
+            remaining_amount_cents=b.planned_amount_cents - actual,
         ))
     return BudgetReport(
         rows=report_rows
+    )
+
+
+def dashboard_summary(db: Session) -> DashboardSummary:
+    invoices = db.query(CustomerInvoice).all()
+    bills = db.query(VendorBill).all()
+    invoice_paid = {invoice.id: 0 for invoice in invoices}
+    bill_paid = {bill.id: 0 for bill in bills}
+    for payment in db.query(Payment).all():
+        if payment.customer_invoice_id in invoice_paid:
+            invoice_paid[payment.customer_invoice_id] += payment.amount_cents
+        if payment.vendor_bill_id in bill_paid:
+            bill_paid[payment.vendor_bill_id] += payment.amount_cents
+    stock_total = sum((movement.quantity_delta for movement in db.query(StockMovement).all()), 0)
+    products_in_stock = 0
+    for product in db.query(Product).filter(Product.is_archived.is_(False)).all():
+        quantity = sum(m.quantity_delta for m in db.query(StockMovement).filter(StockMovement.product_id == product.id).all())
+        products_in_stock += 1 if quantity > 0 else 0
+    pnl = profit_and_loss(db)
+    budget_rows = budget_report(db).rows
+    return DashboardSummary(
+        total_assets_cents=balance_sheet(db).total_assets_cents,
+        net_profit_cents=pnl.net_profit_cents,
+        outstanding_invoices_cents=sum(max(invoice.amount_cents - invoice_paid[invoice.id], 0) for invoice in invoices),
+        outstanding_bills_cents=sum(max(bill.amount_cents - bill_paid[bill.id], 0) for bill in bills),
+        products_in_stock=products_in_stock,
+        units_in_stock=stock_total,
+        budget_planned_cents=sum(row.planned_amount_cents for row in budget_rows),
+        budget_actual_cents=sum(row.actual_amount_cents for row in budget_rows),
     )

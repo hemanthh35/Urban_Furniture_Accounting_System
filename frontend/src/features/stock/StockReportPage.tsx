@@ -1,13 +1,46 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { stockApi, type StockRow } from "../../api/stock";
+import { productsApi, type Product } from "../../api/products";
+import { ApiError } from "../../api/client";
+import Modal from "../../components/Modal";
 
 export default function StockReportPage() {
   const [rows, setRows] = useState<StockRow[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [movements, setMovements] = useState<Awaited<ReturnType<typeof stockApi.movements>>>([]);
   const [loading, setLoading] = useState(true);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [productId, setProductId] = useState("");
+  const [quantityDelta, setQuantityDelta] = useState("");
+  const [movementDate, setMovementDate] = useState(new Date().toISOString().slice(0, 10));
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    stockApi.report().then(setRows).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    Promise.all([stockApi.report(fromDate, toDate), stockApi.movements(fromDate, toDate), productsApi.list()])
+      .then(([report, movementList, productList]) => { setRows(report); setMovements(movementList); setProducts(productList); })
+      .finally(() => setLoading(false));
+  }, [fromDate, toDate]);
+
+  async function handleAdjustment(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    try {
+      await stockApi.adjust({ product_id: Number(productId), quantity_delta: Number(quantityDelta), movement_date: movementDate, reason: reason || null });
+      setModalOpen(false);
+      setProductId("");
+      setQuantityDelta("");
+      setReason("");
+      const [report, movementList] = await Promise.all([stockApi.report(fromDate, toDate), stockApi.movements(fromDate, toDate)]);
+      setRows(report);
+      setMovements(movementList);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not save stock adjustment");
+    }
+  }
 
   if (loading) return <div className="empty-state">Loading...</div>;
 
@@ -17,6 +50,11 @@ export default function StockReportPage() {
         <div>
           <h1>Stock Report</h1>
           <p className="page-sub">Stock comes in from vendor bills and goes out through customer invoices.</p>
+        </div>
+        <div>
+          <label>From <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></label>{" "}
+          <label>To <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></label>{" "}
+          <button onClick={() => setModalOpen(true)}>+ Stock Adjustment</button>
         </div>
       </div>
       {rows.length === 0 ? (
@@ -37,6 +75,28 @@ export default function StockReportPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      <h2>Stock Movements</h2>
+      {movements.length === 0 ? <div className="empty-state">No movements in this period.</div> : (
+        <div className="table-wrap">
+          <table><thead><tr><th>Date</th><th>Product</th><th>Source</th><th>Quantity</th><th>Reason</th></tr></thead>
+            <tbody>{movements.map((movement) => <tr key={movement.id}><td>{movement.movement_date}</td><td>{products.find((p) => p.id === movement.product_id)?.name ?? `#${movement.product_id}`}</td><td>{movement.source_type} #{movement.source_id}</td><td className="mono">{movement.quantity_delta}</td><td>{movement.reason ?? "-"}</td></tr>)}</tbody>
+          </table>
+        </div>
+      )}
+
+      {modalOpen && (
+        <Modal title="Stock Adjustment" onClose={() => setModalOpen(false)}>
+          <form onSubmit={handleAdjustment}>
+            <label>Product<select value={productId} onChange={(e) => setProductId(e.target.value)} required><option value="" disabled>Select a product</option>{products.filter((p) => p.type !== "Service").map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+            <label>Quantity Change<input type="number" value={quantityDelta} onChange={(e) => setQuantityDelta(e.target.value)} placeholder="Use negative to remove" required /></label>
+            <label>Date<input type="date" value={movementDate} onChange={(e) => setMovementDate(e.target.value)} required /></label>
+            <label>Reason<input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Opening stock, correction..." /></label>
+            {error && <div className="form-error">{error}</div>}
+            <div className="modal-actions"><button type="button" className="secondary" onClick={() => setModalOpen(false)}>Cancel</button><button type="submit">Save Adjustment</button></div>
+          </form>
+        </Modal>
       )}
     </div>
   );

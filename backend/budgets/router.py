@@ -20,8 +20,8 @@ CAN_READ = require_roles("admin", "accountant")
 
 
 @router.get("/analytic-accounts", response_model=list[AnalyticAccountOut])
-def list_analytic_accounts(db: Session = Depends(get_db), _user=Depends(CAN_READ)):
-    return service.list_analytic_accounts(db)
+def list_analytic_accounts(include_archived: bool = False, db: Session = Depends(get_db), _user=Depends(CAN_READ)):
+    return service.list_analytic_accounts(db, include_archived)
 
 
 @router.post("/analytic-accounts", response_model=AnalyticAccountOut)
@@ -39,9 +39,14 @@ def archive_analytic_account(account_id: int, db: Session = Depends(get_db), _us
     service.archive_analytic_account(db, account_id)
 
 
+@router.post("/analytic-accounts/{account_id}/restore", status_code=204)
+def restore_analytic_account(account_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    service.restore_analytic_account(db, account_id)
+
+
 @router.get("/budgets", response_model=list[BudgetOut])
-def list_budgets(db: Session = Depends(get_db), _user=Depends(CAN_READ)):
-    return service.list_budgets(db)
+def list_budgets(include_archived: bool = False, db: Session = Depends(get_db), _user=Depends(CAN_READ)):
+    return service.list_budgets(db, include_archived)
 
 
 @router.post("/budgets", response_model=BudgetOut)
@@ -57,3 +62,8 @@ def update_budget(budget_id: int, payload: BudgetUpdate, db: Session = Depends(g
 @router.post("/budgets/{budget_id}/archive", status_code=204)
 def archive_budget(budget_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
     service.archive_budget(db, budget_id)
+
+
+@router.post("/budgets/{budget_id}/restore", status_code=204)
+def restore_budget(budget_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    service.restore_budget(db, budget_id)

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.security import CurrentUser, require_roles
 from purchases import service
-from purchases.schemas import PurchaseOrderCreate, PurchaseOrderOut, VendorBillCreate, VendorBillDetailOut, VendorBillOut
+from purchases.schemas import PurchaseOrderCreate, PurchaseOrderOut, PurchaseOrderUpdate, VendorBillCreate, VendorBillDetailOut, VendorBillOut
 
 router = APIRouter(tags=["purchases"])
 
@@ -21,6 +21,16 @@ def list_purchase_orders(db: Session = Depends(get_db), _user=Depends(CAN_READ))
 @router.post("/purchase-orders", response_model=PurchaseOrderOut)
 def create_purchase_order(payload: PurchaseOrderCreate, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
     return service.create_purchase_order(db, payload)
+
+
+@router.put("/purchase-orders/{po_id}", response_model=PurchaseOrderOut)
+def update_purchase_order(po_id: int, payload: PurchaseOrderUpdate, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    return service.update_purchase_order(db, po_id, payload)
+
+
+@router.post("/purchase-orders/{po_id}/cancel", status_code=204)
+def cancel_purchase_order(po_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    service.cancel_purchase_order(db, po_id)
 
 
 @router.post("/purchase-orders/{po_id}/convert-to-bill", response_model=VendorBillOut)

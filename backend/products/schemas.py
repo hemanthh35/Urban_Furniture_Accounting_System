@@ -20,6 +20,7 @@ class ProductOut(BaseModel):
     sales_price_cents: int
     cost_cents: int
     category: str | None
+    is_archived: bool = False
 
     class Config:
         from_attributes = True

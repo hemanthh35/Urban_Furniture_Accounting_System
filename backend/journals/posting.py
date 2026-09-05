@@ -17,14 +17,14 @@ from journals.models import Journal, JournalEntry, JournalEntryLine
 
 
 def _get_account(db: Session, name: str) -> Account:
-    account = db.query(Account).filter(Account.name == name).first()
+    account = db.query(Account).filter(Account.name == name, Account.is_archived.is_(False)).first()
     if not account:
         raise AppError("ACCOUNT_NOT_FOUND", f"Chart of Accounts is missing a required account: '{name}'", 500)
     return account
 
 
 def _get_or_create_journal(db: Session, journal_type: str) -> Journal:
-    journal = db.query(Journal).filter(Journal.type == journal_type).first()
+    journal = db.query(Journal).filter(Journal.type == journal_type, Journal.is_archived.is_(False)).first()
     if not journal:
         journal = Journal(name=f"{journal_type} Journal", type=journal_type)
         db.add(journal)
@@ -50,15 +50,45 @@ def _post(
     return entry
 
 
-def post_vendor_bill(db: Session, bill_date: date, reference: str, amount_cents: int, analytic_account_id: int | None = None) -> JournalEntry:
+def _post_lines(db: Session, journal_type: str, entry_date: date, reference: str, lines: list[tuple[str, int, int]], analytic_account_id: int | None = None) -> JournalEntry:
+    journal = _get_or_create_journal(db, journal_type)
+    entry = JournalEntry(journal_id=journal.id, date=entry_date, reference=reference)
+    db.add(entry)
+    db.flush()
+    for account_name, debit_cents, credit_cents in lines:
+        account = _get_account(db, account_name)
+        db.add(JournalEntryLine(
+            journal_entry_id=entry.id,
+            account_id=account.id,
+            analytic_account_id=analytic_account_id,
+            debit_cents=debit_cents,
+            credit_cents=credit_cents,
+        ))
+    db.flush()
+    return entry
+
+
+def post_vendor_bill(db: Session, bill_date: date, reference: str, amount_cents: int, analytic_account_id: int | None = None, subtotal_cents: int | None = None, tax_cents: int = 0) -> JournalEntry:
     """Problem statement's own example: 'Purchase made on credit -> Debit: Purchase
     Expense, Credit: Creditor'."""
+    if tax_cents:
+        return _post_lines(db, "Purchase", bill_date, reference, [
+            ("Purchase Expense", subtotal_cents or amount_cents, 0),
+            ("Tax Recoverable", tax_cents, 0),
+            ("Creditors", 0, amount_cents),
+        ], analytic_account_id)
     return _post(db, "Purchase", bill_date, reference, "Purchase Expense", "Creditors", amount_cents, analytic_account_id)
 
 
-def post_customer_invoice(db: Session, invoice_date: date, reference: str, amount_cents: int, analytic_account_id: int | None = None) -> JournalEntry:
+def post_customer_invoice(db: Session, invoice_date: date, reference: str, amount_cents: int, analytic_account_id: int | None = None, subtotal_cents: int | None = None, tax_cents: int = 0) -> JournalEntry:
     """Mirror of the vendor bill rule for the sales side: raising an invoice means
     the customer now owes us money (Debtors up) and we've earned income."""
+    if tax_cents:
+        return _post_lines(db, "Sales", invoice_date, reference, [
+            ("Debtors", amount_cents, 0),
+            ("Sale Income", 0, subtotal_cents or amount_cents),
+            ("Tax Payable", 0, tax_cents),
+        ], analytic_account_id)
     return _post(db, "Sales", invoice_date, reference, "Debtors", "Sale Income", amount_cents, analytic_account_id)
 
 

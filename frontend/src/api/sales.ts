@@ -13,7 +13,7 @@ export interface SalesOrder {
   customer_id: number;
   analytic_account_id: number | null;
   order_date: string;
-  status: "draft" | "invoiced";
+  status: "draft" | "invoiced" | "cancelled";
   items: SalesOrderItem[];
 }
 
@@ -23,6 +23,10 @@ export interface CustomerInvoice {
   invoice_date: string;
   due_date: string | null;
   amount_cents: number;
+  subtotal_cents: number;
+  tax_cents: number;
+  paid_amount_cents: number;
+  outstanding_amount_cents: number;
   status: "unpaid" | "partial" | "paid";
 }
 
@@ -31,10 +35,20 @@ export interface CustomerInvoiceDetail extends CustomerInvoice {
   payments: { id: number; method: string; amount_cents: number; date: string }[];
 }
 
+export interface SalesOrderPayload {
+  customer_id: number;
+  analytic_account_id?: number | null;
+  order_date: string;
+  items: { product_id: number; quantity: number; unit_price_cents: number; tax_percent: number }[];
+}
+
 export const salesApi = {
   list: () => request<SalesOrder[]>("/sales-orders"),
-  create: (payload: { customer_id: number; analytic_account_id?: number | null; order_date: string; items: { product_id: number; quantity: number; unit_price_cents: number; tax_percent: number }[] }) =>
+  create: (payload: SalesOrderPayload) =>
     request<SalesOrder>("/sales-orders", { method: "POST", body: payload }),
+  update: (id: number, payload: SalesOrderPayload) =>
+    request<SalesOrder>(`/sales-orders/${id}`, { method: "PUT", body: payload }),
+  cancel: (id: number) => request<void>(`/sales-orders/${id}/cancel`, { method: "POST" }),
 
   generateInvoice: (soId: number, invoice_date: string, due_date?: string | null) =>
     request<CustomerInvoice>(`/sales-orders/${soId}/generate-invoice`, { method: "POST", body: { invoice_date, due_date } }),

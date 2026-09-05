@@ -20,13 +20,18 @@ const STAFF_NAV = [
   { to: "/reports/balance-sheet", label: "Balance Sheet" },
   { to: "/reports/profit-and-loss", label: "Profit & Loss" },
   { to: "/reports/budget-report", label: "Budget Report" },
+  { to: "/change-password", label: "Change Password" },
+  { to: "/users", label: "User Access", adminOnly: true },
 ];
 
-const CONTACT_NAV = [{ to: "/portal", label: "My Invoices", end: true }];
+const CONTACT_NAV = [
+  { to: "/portal", label: "My Invoices", end: true },
+  { to: "/change-password", label: "Change Password" },
+];
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { role, logout } = useAuth();
-  const nav = role === "contact" ? CONTACT_NAV : STAFF_NAV;
+  const nav = role === "contact" ? CONTACT_NAV : STAFF_NAV.filter((item) => !item.adminOnly || role === "admin");
 
   return (
     <div className="shell">

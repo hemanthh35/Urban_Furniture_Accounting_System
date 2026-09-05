@@ -12,6 +12,22 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     role: str
+
+
+class UserOut(BaseModel):
+    id: int
+    email: str
+    role: str
+    contact_id: int | None
+    is_active: bool
+
+    class Config:
+        from_attributes = True

@@ -5,6 +5,7 @@ export interface Journal {
   name: string;
   type: string;
   default_account_id: number | null;
+  is_archived?: boolean;
 }
 
 export interface JournalEntryLine {
@@ -25,8 +26,12 @@ export interface JournalEntry {
 }
 
 export const journalsApi = {
-  list: () => request<Journal[]>("/journals"),
+  list: (includeArchived = false) => request<Journal[]>(`/journals${includeArchived ? "?include_archived=true" : ""}`),
   create: (payload: { name: string; type: string; default_account_id?: number | null }) =>
     request<Journal>("/journals", { method: "POST", body: payload }),
+  update: (id: number, payload: { name: string; type: string; default_account_id?: number | null }) =>
+    request<Journal>(`/journals/${id}`, { method: "PUT", body: payload }),
+  archive: (id: number) => request<void>(`/journals/${id}/archive`, { method: "POST" }),
+  restore: (id: number) => request<void>(`/journals/${id}/restore`, { method: "POST" }),
   listEntries: () => request<JournalEntry[]>("/journals/entries"),
 };

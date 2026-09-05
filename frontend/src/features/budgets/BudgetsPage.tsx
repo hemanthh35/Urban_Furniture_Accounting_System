@@ -12,19 +12,22 @@ export default function BudgetsPage() {
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   const [name, setName] = useState("");
   const [period, setPeriod] = useState("");
   const [responsiblePerson, setResponsiblePerson] = useState("");
   const [plannedAmount, setPlannedAmount] = useState("");
   const [analyticAccountId, setAnalyticAccountId] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const analyticAccountName = (id: number) => analyticAccounts.find((a) => a.id === id)?.name ?? `#${id}`;
 
   async function load() {
     setLoading(true);
     try {
-      const [b, aa] = await Promise.all([budgetsApi.listBudgets(), budgetsApi.listAnalyticAccounts()]);
+      const [b, aa] = await Promise.all([budgetsApi.listBudgets(showArchived), budgetsApi.listAnalyticAccounts()]);
       setBudgets(b);
       setAnalyticAccounts(aa);
     } finally {
@@ -34,7 +37,7 @@ export default function BudgetsPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [showArchived]);
 
   function openNew() {
     setEditingBudget(null);
@@ -43,6 +46,8 @@ export default function BudgetsPage() {
     setResponsiblePerson("");
     setPlannedAmount("");
     setAnalyticAccountId("");
+    setStartDate(new Date().toISOString().slice(0, 10));
+    setEndDate(new Date(Date.now() + 31536000000).toISOString().slice(0, 10));
     setFormError(null);
     setModalOpen(true);
   }
@@ -54,6 +59,8 @@ export default function BudgetsPage() {
     setResponsiblePerson(budget.responsible_person ?? "");
     setPlannedAmount(String(budget.planned_amount_cents / 100));
     setAnalyticAccountId(String(budget.analytic_account_id));
+    setStartDate(budget.start_date ?? "");
+    setEndDate(budget.end_date ?? "");
     setFormError(null);
     setModalOpen(true);
   }
@@ -73,6 +80,8 @@ export default function BudgetsPage() {
         responsible_person: responsiblePerson || null,
         planned_amount_cents: Math.round(parseFloat(plannedAmount) * 100),
         analytic_account_id: parseInt(analyticAccountId, 10),
+        start_date: startDate,
+        end_date: endDate,
       };
       if (editingBudget) {
         await budgetsApi.updateBudget(editingBudget.id, payload);
@@ -85,6 +94,8 @@ export default function BudgetsPage() {
       setResponsiblePerson("");
       setPlannedAmount("");
       setAnalyticAccountId("");
+      setStartDate("");
+      setEndDate("");
       await load();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Could not save budget");
@@ -103,11 +114,16 @@ export default function BudgetsPage() {
     }
   }
 
+  async function handleRestore(budget: Budget) {
+    try { await budgetsApi.restoreBudget(budget.id); await load(); }
+    catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore budget"); }
+  }
+
   return (
     <div>
       <div className="page-head">
         <h1>Budgets</h1>
-        <button onClick={openNew}>+ New Budget</button>
+        <div><button className="secondary" onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Hide archived" : "Show archived"}</button>{" "}<button onClick={openNew}>+ New Budget</button></div>
       </div>
 
       {loading ? (
@@ -121,6 +137,7 @@ export default function BudgetsPage() {
               <tr>
                 <th>Name</th>
                 <th>Period</th>
+                <th>Dates</th>
                 <th>Responsible</th>
                 <th>Analytic Account</th>
                 <th>Planned Amount</th>
@@ -132,12 +149,13 @@ export default function BudgetsPage() {
                 <tr key={b.id}>
                   <td>{b.name}</td>
                   <td>{b.period}</td>
+                  <td className="muted">{b.start_date ?? "-"} to {b.end_date ?? "-"}</td>
                   <td className="muted">{b.responsible_person ?? "-"}</td>
                   <td>{analyticAccountName(b.analytic_account_id)}</td>
                   <td className="mono">{formatMoney(b.planned_amount_cents)}</td>
                   <td>
-                    <button className="secondary" onClick={() => openEdit(b)}>Edit</button>{" "}
-                    <button className="secondary" onClick={() => handleArchive(b)}>Archive</button>
+                    {!b.is_archived && <><button className="secondary" onClick={() => openEdit(b)}>Edit</button>{" "}<button className="secondary" onClick={() => handleArchive(b)}>Archive</button></>}
+                    {b.is_archived && <button className="secondary" onClick={() => handleRestore(b)}>Restore</button>}
                   </td>
                 </tr>
               ))}
@@ -157,6 +175,8 @@ export default function BudgetsPage() {
               Period
               <input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="e.g. 2026-Q1" required />
             </label>
+            <label>Start Date<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required /></label>
+            <label>End Date<input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required /></label>
             <label>
               Responsible Person
               <input value={responsiblePerson} onChange={(e) => setResponsiblePerson(e.target.value)} />

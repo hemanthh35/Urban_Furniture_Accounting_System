@@ -6,13 +6,18 @@ from journals.models import Journal, JournalEntry
 from journals.schemas import JournalCreate
 
 
-def list_journals(db: Session) -> list[Journal]:
-    return db.query(Journal).order_by(Journal.name).all()
+def list_journals(db: Session, include_archived: bool = False) -> list[Journal]:
+    query = db.query(Journal)
+    if not include_archived:
+        query = query.filter(Journal.is_archived.is_(False))
+    return query.order_by(Journal.name).all()
 
 
 def create_journal(db: Session, payload: JournalCreate) -> Journal:
+    if payload.type not in ("Sales", "Purchase", "Bank", "Cash"):
+        raise AppError("INVALID_JOURNAL_TYPE", "Journal type is invalid", 400)
     if payload.default_account_id is not None:
-        account = db.query(Account).filter(Account.id == payload.default_account_id).first()
+        account = db.query(Account).filter(Account.id == payload.default_account_id, Account.is_archived.is_(False)).first()
         if not account:
             raise AppError("ACCOUNT_NOT_FOUND", "That default account does not exist", 404)
     journal = Journal(**payload.model_dump())
@@ -20,6 +25,37 @@ def create_journal(db: Session, payload: JournalCreate) -> Journal:
     db.commit()
     db.refresh(journal)
     return journal
+
+
+def update_journal(db: Session, journal_id: int, payload: JournalCreate) -> Journal:
+    if payload.type not in ("Sales", "Purchase", "Bank", "Cash"):
+        raise AppError("INVALID_JOURNAL_TYPE", "Journal type is invalid", 400)
+    journal = db.query(Journal).filter(Journal.id == journal_id).first()
+    if not journal:
+        raise AppError("JOURNAL_NOT_FOUND", "That journal does not exist", 404)
+    if payload.default_account_id is not None and not db.query(Account).filter(Account.id == payload.default_account_id, Account.is_archived.is_(False)).first():
+        raise AppError("ACCOUNT_NOT_FOUND", "That default account does not exist", 404)
+    for field, value in payload.model_dump().items():
+        setattr(journal, field, value)
+    db.commit()
+    db.refresh(journal)
+    return journal
+
+
+def archive_journal(db: Session, journal_id: int) -> None:
+    journal = db.query(Journal).filter(Journal.id == journal_id).first()
+    if not journal:
+        raise AppError("JOURNAL_NOT_FOUND", "That journal does not exist", 404)
+    journal.is_archived = True
+    db.commit()
+
+
+def restore_journal(db: Session, journal_id: int) -> None:
+    journal = db.query(Journal).filter(Journal.id == journal_id).first()
+    if not journal:
+        raise AppError("JOURNAL_NOT_FOUND", "That journal does not exist", 404)
+    journal.is_archived = False
+    db.commit()
 
 
 def list_entries(db: Session) -> list[dict]:

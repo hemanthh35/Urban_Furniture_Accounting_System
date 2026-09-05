@@ -13,13 +13,28 @@ CAN_READ = require_roles("admin", "accountant")
 
 
 @router.get("", response_model=list[JournalOut])
-def list_journals(db: Session = Depends(get_db), _user=Depends(CAN_READ)):
-    return service.list_journals(db)
+def list_journals(include_archived: bool = False, db: Session = Depends(get_db), _user=Depends(CAN_READ)):
+    return service.list_journals(db, include_archived)
 
 
 @router.post("", response_model=JournalOut)
 def create_journal(payload: JournalCreate, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
     return service.create_journal(db, payload)
+
+
+@router.put("/{journal_id}", response_model=JournalOut)
+def update_journal(journal_id: int, payload: JournalCreate, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    return service.update_journal(db, journal_id, payload)
+
+
+@router.post("/{journal_id}/archive", status_code=204)
+def archive_journal(journal_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    service.archive_journal(db, journal_id)
+
+
+@router.post("/{journal_id}/restore", status_code=204)
+def restore_journal(journal_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    service.restore_journal(db, journal_id)
 
 
 @router.get("/entries", response_model=list[JournalEntryOut])

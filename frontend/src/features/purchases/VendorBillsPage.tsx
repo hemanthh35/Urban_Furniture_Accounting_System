@@ -72,6 +72,8 @@ export default function VendorBillsPage() {
                 <th>Bill Date</th>
                 <th>Due Date</th>
                 <th>Amount</th>
+                <th>Paid</th>
+                <th>Outstanding</th>
                 <th>Status</th>
                 <th />
               </tr>
@@ -84,13 +86,15 @@ export default function VendorBillsPage() {
                   <td className="muted">{b.bill_date}</td>
                   <td className="muted">{b.due_date ?? "-"}</td>
                   <td className="mono">{formatMoney(b.amount_cents)}</td>
+                  <td className="mono">{formatMoney(b.paid_amount_cents)}</td>
+                  <td className="mono">{formatMoney(b.outstanding_amount_cents)}</td>
                   <td>
                     <span className={b.status === "paid" ? "status-pill status-done" : "status-pill status-pending"}>{b.status}</span>
                   </td>
                   <td className="row-actions">
                     <button className="link-btn" onClick={() => viewBill(b.id)}>View</button>{" "}
                     {b.status !== "paid" && (
-                      <button className="link-btn" onClick={() => { setPaymentAmount(String(b.amount_cents / 100)); setPayingBill(b); }}>
+                      <button className="link-btn" onClick={() => { setPaymentAmount(String(b.outstanding_amount_cents / 100)); setPayingBill(b); }}>
                         Pay
                       </button>
                     )}
@@ -134,15 +138,16 @@ export default function VendorBillsPage() {
 
       {viewingBill && (
         <Modal title={`Vendor Bill #${viewingBill.id}`} onClose={() => setViewingBill(null)}>
-          <p>Bill total: <strong>{formatMoney(viewingBill.amount_cents)}</strong></p>
+          <p>Subtotal: <strong>{formatMoney(viewingBill.subtotal_cents)}</strong> | Tax: <strong>{formatMoney(viewingBill.tax_cents)}</strong> | Total: <strong>{formatMoney(viewingBill.amount_cents)}</strong></p>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Product ID</th><th>Quantity</th><th>Unit Price</th></tr></thead>
+              <thead><tr><th>Product ID</th><th>Quantity</th><th>Unit Price</th><th>Tax</th></tr></thead>
               <tbody>{viewingBill.items.map((item) => (
                 <tr key={item.id}>
                   <td>{item.product_id}</td>
                   <td>{item.quantity}</td>
                   <td className="mono">{formatMoney(item.unit_price_cents)}</td>
+                  <td>{item.tax_percent}%</td>
                 </tr>
               ))}</tbody>
             </table>

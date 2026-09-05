@@ -102,6 +102,7 @@ label {
   margin-bottom: 8px;
   align-items: center;
 }
+.item-row:not(.sales-item-row) { grid-template-columns: 2fr 1fr 1fr 1fr auto; }
 .sales-item-row { grid-template-columns: 2fr 1fr 1fr 1fr auto; }
 .add-line-btn { width: 100%; margin-bottom: 1.3rem; }
 

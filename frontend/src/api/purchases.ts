@@ -5,6 +5,7 @@ export interface PurchaseOrderItem {
   product_id: number;
   quantity: number;
   unit_price_cents: number;
+  tax_percent: number;
 }
 
 export interface PurchaseOrder {
@@ -12,7 +13,7 @@ export interface PurchaseOrder {
   vendor_id: number;
   analytic_account_id: number | null;
   order_date: string;
-  status: "draft" | "billed";
+  status: "draft" | "billed" | "cancelled";
   items: PurchaseOrderItem[];
 }
 
@@ -22,6 +23,10 @@ export interface VendorBill {
   bill_date: string;
   due_date: string | null;
   amount_cents: number;
+  subtotal_cents: number;
+  tax_cents: number;
+  paid_amount_cents: number;
+  outstanding_amount_cents: number;
   status: "unpaid" | "partial" | "paid";
 }
 
@@ -30,10 +35,20 @@ export interface VendorBillDetail extends VendorBill {
   payments: { id: number; method: string; amount_cents: number; date: string }[];
 }
 
+export interface PurchaseOrderPayload {
+  vendor_id: number;
+  analytic_account_id?: number | null;
+  order_date: string;
+  items: { product_id: number; quantity: number; unit_price_cents: number; tax_percent: number }[];
+}
+
 export const purchasesApi = {
   list: () => request<PurchaseOrder[]>("/purchase-orders"),
-  create: (payload: { vendor_id: number; analytic_account_id?: number | null; order_date: string; items: { product_id: number; quantity: number; unit_price_cents: number }[] }) =>
+  create: (payload: PurchaseOrderPayload) =>
     request<PurchaseOrder>("/purchase-orders", { method: "POST", body: payload }),
+  update: (id: number, payload: PurchaseOrderPayload) =>
+    request<PurchaseOrder>(`/purchase-orders/${id}`, { method: "PUT", body: payload }),
+  cancel: (id: number) => request<void>(`/purchase-orders/${id}/cancel`, { method: "POST" }),
 
   convertToBill: (poId: number, bill_date: string, due_date?: string | null) =>
     request<VendorBill>(`/purchase-orders/${poId}/convert-to-bill`, { method: "POST", body: { bill_date, due_date } }),

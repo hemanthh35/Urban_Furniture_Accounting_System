@@ -2,8 +2,8 @@ from sqlalchemy import Column, Integer, String, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from core.database import Base
 
-PURCHASE_ORDER_STATUSES = ("draft", "billed")
-VENDOR_BILL_STATUSES = ("unpaid", "paid")
+PURCHASE_ORDER_STATUSES = ("draft", "billed", "cancelled")
+VENDOR_BILL_STATUSES = ("unpaid", "partial", "paid")
 
 
 class PurchaseOrder(Base):
@@ -32,6 +32,7 @@ class PurchaseOrderItem(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
     unit_price_cents = Column(Integer, nullable=False)
+    tax_percent = Column(Integer, nullable=False, default=0)
 
     purchase_order = relationship("PurchaseOrder", back_populates="items")
 
@@ -50,5 +51,22 @@ class VendorBill(Base):
     bill_date = Column(Date, nullable=False)
     due_date = Column(Date, nullable=True)
     amount_cents = Column(Integer, nullable=False)
+    subtotal_cents = Column(Integer, nullable=False, default=0)
+    tax_cents = Column(Integer, nullable=False, default=0)
     status = Column(String(20), nullable=False, default="unpaid")
     journal_entry_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=True)
+
+    lines = relationship("VendorBillLine", back_populates="bill", cascade="all, delete-orphan")
+
+
+class VendorBillLine(Base):
+    __tablename__ = "vendor_bill_lines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vendor_bill_id = Column(Integer, ForeignKey("vendor_bills.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    unit_price_cents = Column(Integer, nullable=False)
+    tax_percent = Column(Integer, nullable=False, default=0)
+
+    bill = relationship("VendorBill", back_populates="lines")

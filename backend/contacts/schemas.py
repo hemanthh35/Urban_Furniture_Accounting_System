@@ -37,6 +37,7 @@ class ContactOut(BaseModel):
     state: str | None
     pincode: str | None
     profile_image: str | None
+    is_archived: bool = False
 
     class Config:
         from_attributes = True

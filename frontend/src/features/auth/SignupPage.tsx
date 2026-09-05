@@ -45,8 +45,7 @@ export default function SignupPage() {
         <label>
           Role
           <select value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="admin">Admin</option>
-            <option value="accountant">Invoicing User (Accountant)</option>
+              <option value="accountant">Invoicing User (Accountant)</option>
           </select>
         </label>
         {error && <div className="form-error">{error}</div>}

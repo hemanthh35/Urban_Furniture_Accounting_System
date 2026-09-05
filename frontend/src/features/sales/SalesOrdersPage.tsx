@@ -17,6 +17,7 @@ export default function SalesOrdersPage() {
   const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<SalesOrder | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -49,12 +50,36 @@ export default function SalesOrdersPage() {
     load();
   }, []);
 
+  function resetForm() {
+    setCustomerId("");
+    setAnalyticAccountId("");
+    setOrderDate(new Date().toISOString().slice(0, 10));
+    setItems([emptyItem()]);
+    setFormError(null);
+  }
+
+  function openNew() {
+    setEditingOrder(null);
+    resetForm();
+    setModalOpen(true);
+  }
+
+  function openEdit(so: SalesOrder) {
+    setEditingOrder(so);
+    setCustomerId(String(so.customer_id));
+    setAnalyticAccountId(so.analytic_account_id ? String(so.analytic_account_id) : "");
+    setOrderDate(so.order_date);
+    setItems(so.items.map((item) => ({ product_id: String(item.product_id), quantity: String(item.quantity), unit_price_cents: String(item.unit_price_cents / 100), tax_percent: String(item.tax_percent ?? 0) })));
+    setFormError(null);
+    setModalOpen(true);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
     setSaving(true);
     try {
-      await salesApi.create({
+      const payload = {
         customer_id: parseInt(customerId, 10),
         analytic_account_id: analyticAccountId ? parseInt(analyticAccountId, 10) : null,
         order_date: orderDate,
@@ -66,16 +91,30 @@ export default function SalesOrdersPage() {
             unit_price_cents: Math.round(parseFloat(i.unit_price_cents) * 100),
             tax_percent: parseInt(i.tax_percent || "0", 10),
           })),
-      });
+      };
+      if (editingOrder) await salesApi.update(editingOrder.id, payload);
+      else await salesApi.create(payload);
       setModalOpen(false);
-      setCustomerId("");
-      setAnalyticAccountId("");
-      setItems([emptyItem()]);
+      setEditingOrder(null);
+      resetForm();
       await load();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not create sales order");
+      setFormError(err instanceof ApiError ? err.message : "Could not save sales order");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleCancel(so: SalesOrder) {
+    if (!window.confirm(`Cancel sales order #${so.id}?`)) return;
+    setBusyId(so.id);
+    try {
+      await salesApi.cancel(so.id);
+      await load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not cancel sales order");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -107,7 +146,7 @@ export default function SalesOrdersPage() {
           <h1>Sales Orders</h1>
           <p className="page-sub">Generating a Customer Invoice from an SO is the step that posts to the ledger.</p>
         </div>
-        <button onClick={() => setModalOpen(true)}>+ New Sales Order</button>
+        <button onClick={openNew}>+ New Sales Order</button>
       </div>
 
       {loading ? (
@@ -139,9 +178,13 @@ export default function SalesOrdersPage() {
                   </td>
                   <td className="row-actions">
                     {so.status === "draft" && (
+                      <>
+                      <button className="link-btn" onClick={() => openEdit(so)}>Edit</button>{" "}
                       <button className="link-btn" onClick={() => openGenerateInvoice(so)} disabled={busyId === so.id}>
                         {busyId === so.id ? "Generating..." : "Generate Invoice"}
-                      </button>
+                      </button>{" "}
+                      <button className="link-btn" onClick={() => handleCancel(so)} disabled={busyId === so.id}>Cancel</button>
+                      </>
                     )}
                     {so.status === "invoiced" && (
                       <Link className="link-btn" to="/customer-invoices">
@@ -157,7 +200,7 @@ export default function SalesOrdersPage() {
       )}
 
       {modalOpen && (
-        <Modal title="New Sales Order" onClose={() => setModalOpen(false)}>
+        <Modal title={editingOrder ? `Edit Sales Order #${editingOrder.id}` : "New Sales Order"} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSubmit}>
             <label>
               Customer
@@ -217,7 +260,7 @@ export default function SalesOrdersPage() {
                 Cancel
               </button>
               <button type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Create draft"}
+                {saving ? "Saving..." : editingOrder ? "Save changes" : "Create draft"}
               </button>
             </div>
           </form>

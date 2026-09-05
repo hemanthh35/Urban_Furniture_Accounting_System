@@ -10,13 +10,14 @@ export default function AccountsPage() {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState("Asset");
 
   async function load() {
     setLoading(true);
     try {
-      setAccounts(await accountsApi.list());
+      setAccounts(await accountsApi.list(showArchived));
     } finally {
       setLoading(false);
     }
@@ -24,7 +25,7 @@ export default function AccountsPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [showArchived]);
 
   function openNew() {
     setEditingAccount(null);
@@ -72,6 +73,11 @@ export default function AccountsPage() {
     }
   }
 
+  async function handleRestore(account: Account) {
+    try { await accountsApi.restore(account.id); await load(); }
+    catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore account"); }
+  }
+
   return (
     <div>
       <div className="page-head">
@@ -79,7 +85,7 @@ export default function AccountsPage() {
           <h1>Chart of Accounts</h1>
           <p className="page-sub">The master list of ledger buckets every transaction posts into.</p>
         </div>
-        <button onClick={openNew}>+ New Account</button>
+        <div><button className="secondary" onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Hide archived" : "Show archived"}</button>{" "}<button onClick={openNew}>+ New Account</button></div>
       </div>
 
       {loading ? (
@@ -100,8 +106,8 @@ export default function AccountsPage() {
                   <td>{a.name}</td>
                   <td>{a.type}</td>
                   <td>
-                    <button className="secondary" onClick={() => openEdit(a)}>Edit</button>{" "}
-                    <button className="secondary" onClick={() => handleArchive(a)}>Archive</button>
+                    {!a.is_archived && <><button className="secondary" onClick={() => openEdit(a)}>Edit</button>{" "}<button className="secondary" onClick={() => handleArchive(a)}>Archive</button></>}
+                    {a.is_archived && <button className="secondary" onClick={() => handleRestore(a)}>Restore</button>}
                   </td>
                 </tr>
               ))}

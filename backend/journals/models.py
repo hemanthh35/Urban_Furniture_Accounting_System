@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from core.database import Base
 
@@ -20,6 +20,7 @@ class Journal(Base):
     name = Column(String(255), nullable=False)
     type = Column(String(20), nullable=False)  # Sales | Purchase | Bank | Cash
     default_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+    is_archived = Column(Boolean, nullable=False, default=False)
 
 
 class JournalEntry(Base):

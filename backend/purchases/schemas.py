@@ -7,6 +7,7 @@ class PurchaseOrderItemCreate(BaseModel):
     product_id: int
     quantity: int
     unit_price_cents: int
+    tax_percent: int = 0
 
 
 class PurchaseOrderCreate(BaseModel):
@@ -16,11 +17,16 @@ class PurchaseOrderCreate(BaseModel):
     items: list[PurchaseOrderItemCreate]
 
 
+class PurchaseOrderUpdate(PurchaseOrderCreate):
+    pass
+
+
 class PurchaseOrderItemOut(BaseModel):
     id: int
     product_id: int
     quantity: int
     unit_price_cents: int
+    tax_percent: int
 
     class Config:
         from_attributes = True
@@ -49,6 +55,10 @@ class VendorBillOut(BaseModel):
     bill_date: date
     due_date: date | None
     amount_cents: int
+    subtotal_cents: int = 0
+    tax_cents: int = 0
+    paid_amount_cents: int = 0
+    outstanding_amount_cents: int = 0
     status: str
 
     class Config:
@@ -56,8 +66,19 @@ class VendorBillOut(BaseModel):
 
 
 class VendorBillDetailOut(VendorBillOut):
-    items: list[PurchaseOrderItemOut]
+    items: list["VendorBillLineOut"]
     payments: list["PaymentSummary"]
+
+
+class VendorBillLineOut(BaseModel):
+    id: int
+    product_id: int
+    quantity: int
+    unit_price_cents: int
+    tax_percent: int
+
+    class Config:
+        from_attributes = True
 
 
 class PaymentSummary(BaseModel):
@@ -65,3 +86,6 @@ class PaymentSummary(BaseModel):
     method: str
     amount_cents: int
     date: date
+
+    class Config:
+        from_attributes = True

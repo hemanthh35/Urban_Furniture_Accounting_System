@@ -15,8 +15,8 @@ CAN_READ = require_roles("admin", "accountant")
 
 
 @router.get("", response_model=list[ContactOut])
-def list_contacts(db: Session = Depends(get_db), _user=Depends(CAN_READ)):
-    return service.list_contacts(db)
+def list_contacts(include_archived: bool = False, db: Session = Depends(get_db), _user=Depends(CAN_READ)):
+    return service.list_contacts(db, include_archived)
 
 
 @router.post("", response_model=ContactOut)
@@ -32,3 +32,8 @@ def update_contact(contact_id: int, payload: ContactUpdate, db: Session = Depend
 @router.post("/{contact_id}/archive", status_code=204)
 def archive_contact(contact_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
     service.archive_contact(db, contact_id)
+
+
+@router.post("/{contact_id}/restore", status_code=204)
+def restore_contact(contact_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    service.restore_contact(db, contact_id)

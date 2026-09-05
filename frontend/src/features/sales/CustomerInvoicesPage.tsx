@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { salesApi, type CustomerInvoice, type CustomerInvoiceDetail } from "../../api/sales";
-import { purchasesApi, type VendorBill } from "../../api/purchases";
+import { purchasesApi, type VendorBill, type VendorBillDetail } from "../../api/purchases";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import { formatMoney } from "../../utils/money";
@@ -17,6 +17,7 @@ export default function CustomerInvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [payingInvoice, setPayingInvoice] = useState<CustomerInvoice | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<CustomerInvoiceDetail | null>(null);
+  const [viewingVendorBill, setViewingVendorBill] = useState<VendorBillDetail | null>(null);
   const [method, setMethod] = useState("Cash");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [saving, setSaving] = useState(false);
@@ -62,6 +63,14 @@ export default function CustomerInvoicesPage() {
     }
   }
 
+  async function viewVendorBill(billId: number) {
+    try {
+      setViewingVendorBill(await purchasesApi.getBill(billId));
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not load vendor bill details");
+    }
+  }
+
   return (
     <div>
       <div className="page-head">
@@ -81,6 +90,8 @@ export default function CustomerInvoicesPage() {
                 <th>Invoice Date</th>
                 <th>Due Date</th>
                 <th>Amount</th>
+                <th>Paid</th>
+                <th>Outstanding</th>
                 <th>Status</th>
                 <th />
               </tr>
@@ -92,13 +103,15 @@ export default function CustomerInvoicesPage() {
                   <td className="muted">{inv.invoice_date}</td>
                   <td className="muted">{inv.due_date ?? "-"}</td>
                   <td className="mono">{formatMoney(inv.amount_cents)}</td>
+                  <td className="mono">{formatMoney(inv.paid_amount_cents)}</td>
+                  <td className="mono">{formatMoney(inv.outstanding_amount_cents)}</td>
                   <td>
                     <span className={inv.status === "paid" ? "status-pill status-done" : "status-pill status-pending"}>{inv.status}</span>
                   </td>
                   <td className="row-actions">
                     <button className="link-btn" onClick={() => viewInvoice(inv.id)}>View</button>{" "}
                     {inv.status !== "paid" && (
-                      <button className="link-btn" onClick={() => { setPaymentAmount(String(inv.amount_cents / 100)); setPayingInvoice(inv); }}>
+                      <button className="link-btn" onClick={() => { setPaymentAmount(String(inv.outstanding_amount_cents / 100)); setPayingInvoice(inv); }}>
                         Pay
                       </button>
                     )}
@@ -116,7 +129,7 @@ export default function CustomerInvoicesPage() {
           {vendorBills.length === 0 ? <div className="empty-state">No vendor bills yet.</div> : (
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Bill</th><th>Bill Date</th><th>Due Date</th><th>Amount</th><th>Status</th></tr></thead>
+                <thead><tr><th>Bill</th><th>Bill Date</th><th>Due Date</th><th>Amount</th><th>Status</th><th /></tr></thead>
                 <tbody>{vendorBills.map((bill) => (
                   <tr key={bill.id}>
                     <td className="mono">#{bill.id}</td>
@@ -124,6 +137,7 @@ export default function CustomerInvoicesPage() {
                     <td>{bill.due_date ?? "-"}</td>
                     <td className="mono">{formatMoney(bill.amount_cents)}</td>
                     <td>{bill.status}</td>
+                    <td><button className="link-btn" onClick={() => viewVendorBill(bill.id)}>View</button></td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -164,7 +178,7 @@ export default function CustomerInvoicesPage() {
 
       {viewingInvoice && (
         <Modal title={`Customer Invoice #${viewingInvoice.id}`} onClose={() => setViewingInvoice(null)}>
-          <p>Invoice total: <strong>{formatMoney(viewingInvoice.amount_cents)}</strong></p>
+          <p>Subtotal: <strong>{formatMoney(viewingInvoice.subtotal_cents)}</strong> | Tax: <strong>{formatMoney(viewingInvoice.tax_cents)}</strong> | Total: <strong>{formatMoney(viewingInvoice.amount_cents)}</strong></p>
           <div className="table-wrap">
             <table>
               <thead><tr><th>Product ID</th><th>Quantity</th><th>Unit Price</th><th>Tax</th></tr></thead>
@@ -186,6 +200,15 @@ export default function CustomerInvoicesPage() {
               </table>
             </div>
           )}
+        </Modal>
+      )}
+
+      {viewingVendorBill && (
+        <Modal title={`Vendor Bill #${viewingVendorBill.id}`} onClose={() => setViewingVendorBill(null)}>
+          <p>Subtotal: <strong>{formatMoney(viewingVendorBill.subtotal_cents)}</strong> | Tax: <strong>{formatMoney(viewingVendorBill.tax_cents)}</strong> | Total: <strong>{formatMoney(viewingVendorBill.amount_cents)}</strong></p>
+          <div className="table-wrap"><table><thead><tr><th>Product ID</th><th>Quantity</th><th>Unit Price</th><th>Tax</th></tr></thead><tbody>
+            {viewingVendorBill.items.map((item) => <tr key={item.id}><td>{item.product_id}</td><td>{item.quantity}</td><td className="mono">{formatMoney(item.unit_price_cents)}</td><td>{item.tax_percent}%</td></tr>)}
+          </tbody></table></div>
         </Modal>
       )}
     </div>

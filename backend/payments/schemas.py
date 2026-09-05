@@ -8,6 +8,7 @@ class VendorPaymentCreate(BaseModel):
     method: str  # Cash | Bank
     amount_cents: int
     date: date
+    journal_entry_id: int | None = None
 
 
 class CustomerPaymentCreate(BaseModel):

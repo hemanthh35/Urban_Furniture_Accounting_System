@@ -14,6 +14,21 @@ from sales.models import SalesOrder
 from sales.service import get_customer_invoice
 
 
+def list_payments(db: Session, vendor_bill_id: int | None = None, customer_invoice_id: int | None = None) -> list[Payment]:
+    query = db.query(Payment)
+    if vendor_bill_id is not None:
+        query = query.filter(Payment.vendor_bill_id == vendor_bill_id)
+    if customer_invoice_id is not None:
+        query = query.filter(Payment.customer_invoice_id == customer_invoice_id)
+    return query.order_by(Payment.date, Payment.id).all()
+
+
+def ensure_contact_invoice_access(db: Session, invoice, contact_id: int | None) -> None:
+    so = db.query(SalesOrder).filter(SalesOrder.id == invoice.sales_order_id).first()
+    if not so or so.customer_id != contact_id:
+        raise AppError("FORBIDDEN", "You can only view your own invoices", 403)
+
+
 def _validate_payment(db: Session, method: str, amount_cents: int, bill_id: int | None = None, invoice_id: int | None = None) -> int:
     if method not in ("Cash", "Bank"):
         raise AppError("INVALID_PAYMENT_METHOD", "Payment method must be Cash or Bank", 400)

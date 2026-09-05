@@ -28,16 +28,29 @@ export interface BudgetReportRow {
   analytic_account_name: string;
   planned_amount_cents: number;
   actual_amount_cents: number;
+  remaining_amount_cents: number;
 }
 
 export interface BudgetReport {
   rows: BudgetReportRow[];
 }
 
+export interface DashboardSummary {
+  total_assets_cents: number;
+  net_profit_cents: number;
+  outstanding_invoices_cents: number;
+  outstanding_bills_cents: number;
+  products_in_stock: number;
+  units_in_stock: number;
+  budget_planned_cents: number;
+  budget_actual_cents: number;
+}
+
 export const reportsApi = {
   balanceSheet: (fromDate = "", toDate = "") => request<BalanceSheet>(`/reports/balance-sheet${reportQuery(fromDate, toDate)}`),
   profitAndLoss: (fromDate = "", toDate = "") => request<ProfitAndLoss>(`/reports/profit-and-loss${reportQuery(fromDate, toDate)}`),
   budgetReport: (fromDate = "", toDate = "") => request<BudgetReport>(`/reports/budget-report${reportQuery(fromDate, toDate)}`),
+  dashboardSummary: () => request<DashboardSummary>("/reports/dashboard-summary"),
 };
 
 function reportQuery(fromDate: string, toDate: string): string {

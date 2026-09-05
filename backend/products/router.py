@@ -13,8 +13,8 @@ CAN_READ = require_roles("admin", "accountant")
 
 
 @router.get("", response_model=list[ProductOut])
-def list_products(db: Session = Depends(get_db), _user=Depends(CAN_READ)):
-    return service.list_products(db)
+def list_products(include_archived: bool = False, db: Session = Depends(get_db), _user=Depends(CAN_READ)):
+    return service.list_products(db, include_archived)
 
 
 @router.post("", response_model=ProductOut)
@@ -30,3 +30,8 @@ def update_product(product_id: int, payload: ProductUpdate, db: Session = Depend
 @router.post("/{product_id}/archive", status_code=204)
 def archive_product(product_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
     service.archive_product(db, product_id)
+
+
+@router.post("/{product_id}/restore", status_code=204)
+def restore_product(product_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    service.restore_product(db, product_id)

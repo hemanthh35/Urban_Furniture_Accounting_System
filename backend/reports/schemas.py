@@ -29,7 +29,19 @@ class BudgetReportRow(BaseModel):
     analytic_account_name: str
     planned_amount_cents: int
     actual_amount_cents: int
+    remaining_amount_cents: int
 
 
 class BudgetReport(BaseModel):
     rows: list[BudgetReportRow]
+
+
+class DashboardSummary(BaseModel):
+    total_assets_cents: int
+    net_profit_cents: int
+    outstanding_invoices_cents: int
+    outstanding_bills_cents: int
+    products_in_stock: int
+    units_in_stock: int
+    budget_planned_cents: int
+    budget_actual_cents: int

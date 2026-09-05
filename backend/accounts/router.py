@@ -13,8 +13,8 @@ CAN_READ = require_roles("admin", "accountant")
 
 
 @router.get("", response_model=list[AccountOut])
-def list_accounts(db: Session = Depends(get_db), _user=Depends(CAN_READ)):
-    return service.list_accounts(db)
+def list_accounts(include_archived: bool = False, db: Session = Depends(get_db), _user=Depends(CAN_READ)):
+    return service.list_accounts(db, include_archived)
 
 
 @router.post("", response_model=AccountOut)
@@ -30,3 +30,8 @@ def update_account(account_id: int, payload: AccountUpdate, db: Session = Depend
 @router.post("/{account_id}/archive", status_code=204)
 def archive_account(account_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
     service.archive_account(db, account_id)
+
+
+@router.post("/{account_id}/restore", status_code=204)
+def restore_account(account_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    service.restore_account(db, account_id)

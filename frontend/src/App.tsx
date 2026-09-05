@@ -19,6 +19,8 @@ import ProfitAndLossPage from "./features/reports/ProfitAndLossPage";
 import BudgetReportPage from "./features/reports/BudgetReportPage";
 import JournalsPage from "./features/journals/JournalsPage";
 import StockReportPage from "./features/stock/StockReportPage";
+import ChangePasswordPage from "./features/auth/ChangePasswordPage";
+import UsersPage from "./features/auth/UsersPage";
 
 const STAFF = ["admin", "accountant"];
 
@@ -49,6 +51,8 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/change-password" element={<ProtectedRoute><Layout><ChangePasswordPage /></Layout></ProtectedRoute>} />
+          <Route path="/users" element={<ProtectedRoute roles={["admin"]}><Layout><UsersPage /></Layout></ProtectedRoute>} />
 
           <Route path="/" element={<Staff><DashboardPage /></Staff>} />
           <Route path="/contacts" element={<Staff><ContactsPage /></Staff>} />

@@ -2,8 +2,8 @@ from sqlalchemy import Column, Integer, String, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from core.database import Base
 
-SALES_ORDER_STATUSES = ("draft", "invoiced")
-CUSTOMER_INVOICE_STATUSES = ("unpaid", "paid")
+SALES_ORDER_STATUSES = ("draft", "invoiced", "cancelled")
+CUSTOMER_INVOICE_STATUSES = ("unpaid", "partial", "paid")
 
 
 class SalesOrder(Base):
@@ -48,5 +48,22 @@ class CustomerInvoice(Base):
     invoice_date = Column(Date, nullable=False)
     due_date = Column(Date, nullable=True)
     amount_cents = Column(Integer, nullable=False)
+    subtotal_cents = Column(Integer, nullable=False, default=0)
+    tax_cents = Column(Integer, nullable=False, default=0)
     status = Column(String(20), nullable=False, default="unpaid")
     journal_entry_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=True)
+
+    lines = relationship("CustomerInvoiceLine", back_populates="invoice", cascade="all, delete-orphan")
+
+
+class CustomerInvoiceLine(Base):
+    __tablename__ = "customer_invoice_lines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_invoice_id = Column(Integer, ForeignKey("customer_invoices.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    unit_price_cents = Column(Integer, nullable=False)
+    tax_percent = Column(Integer, nullable=False, default=0)
+
+    invoice = relationship("CustomerInvoice", back_populates="lines")

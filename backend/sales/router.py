@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.security import CurrentUser, require_roles
 from sales import service
-from sales.schemas import CustomerInvoiceCreate, CustomerInvoiceDetailOut, CustomerInvoiceOut, SalesOrderCreate, SalesOrderOut
+from sales.schemas import CustomerInvoiceCreate, CustomerInvoiceDetailOut, CustomerInvoiceOut, SalesOrderCreate, SalesOrderOut, SalesOrderUpdate
 
 router = APIRouter(tags=["sales"])
 
@@ -23,6 +23,16 @@ def list_sales_orders(db: Session = Depends(get_db), _user=Depends(CAN_READ_STAF
 @router.post("/sales-orders", response_model=SalesOrderOut)
 def create_sales_order(payload: SalesOrderCreate, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
     return service.create_sales_order(db, payload)
+
+
+@router.put("/sales-orders/{so_id}", response_model=SalesOrderOut)
+def update_sales_order(so_id: int, payload: SalesOrderUpdate, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    return service.update_sales_order(db, so_id, payload)
+
+
+@router.post("/sales-orders/{so_id}/cancel", status_code=204)
+def cancel_sales_order(so_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    service.cancel_sales_order(db, so_id)
 
 
 @router.post("/sales-orders/{so_id}/generate-invoice", response_model=CustomerInvoiceOut)

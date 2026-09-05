@@ -17,6 +17,10 @@ class SalesOrderCreate(BaseModel):
     items: list[SalesOrderItemCreate]
 
 
+class SalesOrderUpdate(SalesOrderCreate):
+    pass
+
+
 class SalesOrderItemOut(BaseModel):
     id: int
     product_id: int
@@ -51,6 +55,10 @@ class CustomerInvoiceOut(BaseModel):
     invoice_date: date
     due_date: date | None
     amount_cents: int
+    subtotal_cents: int = 0
+    tax_cents: int = 0
+    paid_amount_cents: int = 0
+    outstanding_amount_cents: int = 0
     status: str
 
     class Config:
@@ -58,8 +66,19 @@ class CustomerInvoiceOut(BaseModel):
 
 
 class CustomerInvoiceDetailOut(CustomerInvoiceOut):
-    items: list[SalesOrderItemOut]
+    items: list["CustomerInvoiceLineOut"]
     payments: list["PaymentSummary"]
+
+
+class CustomerInvoiceLineOut(BaseModel):
+    id: int
+    product_id: int
+    quantity: int
+    unit_price_cents: int
+    tax_percent: int
+
+    class Config:
+        from_attributes = True
 
 
 class PaymentSummary(BaseModel):
@@ -67,3 +86,6 @@ class PaymentSummary(BaseModel):
     method: str
     amount_cents: int
     date: date
+
+    class Config:
+        from_attributes = True

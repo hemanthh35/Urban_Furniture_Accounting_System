@@ -18,6 +18,14 @@ class StockMovementOut(BaseModel):
     source_id: int
     movement_date: date
     quantity_delta: int
+    reason: str | None
 
     class Config:
         from_attributes = True
+
+
+class StockAdjustmentCreate(BaseModel):
+    product_id: int
+    quantity_delta: int
+    movement_date: date
+    reason: str | None = None

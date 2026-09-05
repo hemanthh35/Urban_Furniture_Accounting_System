@@ -7,8 +7,8 @@ import { budgetsApi, type AnalyticAccount } from "../../api/budgets";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 
-type DraftItem = { product_id: string; quantity: string; unit_price_cents: string };
-const emptyItem = (): DraftItem => ({ product_id: "", quantity: "", unit_price_cents: "" });
+type DraftItem = { product_id: string; quantity: string; unit_price_cents: string; tax_percent: string };
+const emptyItem = (): DraftItem => ({ product_id: "", quantity: "", unit_price_cents: "", tax_percent: "0" });
 
 export default function PurchaseOrdersPage() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
@@ -17,6 +17,7 @@ export default function PurchaseOrdersPage() {
   const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -49,12 +50,36 @@ export default function PurchaseOrdersPage() {
     load();
   }, []);
 
+  function resetForm() {
+    setVendorId("");
+    setAnalyticAccountId("");
+    setOrderDate(new Date().toISOString().slice(0, 10));
+    setItems([emptyItem()]);
+    setFormError(null);
+  }
+
+  function openNew() {
+    setEditingOrder(null);
+    resetForm();
+    setModalOpen(true);
+  }
+
+  function openEdit(po: PurchaseOrder) {
+    setEditingOrder(po);
+    setVendorId(String(po.vendor_id));
+    setAnalyticAccountId(po.analytic_account_id ? String(po.analytic_account_id) : "");
+    setOrderDate(po.order_date);
+    setItems(po.items.map((item) => ({ product_id: String(item.product_id), quantity: String(item.quantity), unit_price_cents: String(item.unit_price_cents / 100), tax_percent: String(item.tax_percent ?? 0) })));
+    setFormError(null);
+    setModalOpen(true);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
     setSaving(true);
     try {
-      await purchasesApi.create({
+      const payload = {
         vendor_id: parseInt(vendorId, 10),
         analytic_account_id: analyticAccountId ? parseInt(analyticAccountId, 10) : null,
         order_date: orderDate,
@@ -64,17 +89,32 @@ export default function PurchaseOrdersPage() {
             product_id: parseInt(i.product_id, 10),
             quantity: parseInt(i.quantity, 10),
             unit_price_cents: Math.round(parseFloat(i.unit_price_cents) * 100),
+            tax_percent: parseInt(i.tax_percent || "0", 10),
           })),
-      });
+      };
+      if (editingOrder) await purchasesApi.update(editingOrder.id, payload);
+      else await purchasesApi.create(payload);
       setModalOpen(false);
-      setVendorId("");
-      setAnalyticAccountId("");
-      setItems([emptyItem()]);
+      setEditingOrder(null);
+      resetForm();
       await load();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not create purchase order");
+      setFormError(err instanceof ApiError ? err.message : "Could not save purchase order");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleCancel(po: PurchaseOrder) {
+    if (!window.confirm(`Cancel purchase order #${po.id}?`)) return;
+    setBusyId(po.id);
+    try {
+      await purchasesApi.cancel(po.id);
+      await load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not cancel purchase order");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -106,7 +146,7 @@ export default function PurchaseOrdersPage() {
           <h1>Purchase Orders</h1>
           <p className="page-sub">Once goods are received, convert a PO into a Vendor Bill - that's the step that posts to the ledger.</p>
         </div>
-        <button onClick={() => setModalOpen(true)}>+ New Purchase Order</button>
+        <button onClick={openNew}>+ New Purchase Order</button>
       </div>
 
       {loading ? (
@@ -138,9 +178,13 @@ export default function PurchaseOrdersPage() {
                   </td>
                   <td className="row-actions">
                     {po.status === "draft" && (
+                      <>
+                      <button className="link-btn" onClick={() => openEdit(po)}>Edit</button>{" "}
                       <button className="link-btn" onClick={() => openConvertToBill(po)} disabled={busyId === po.id}>
                         {busyId === po.id ? "Converting..." : "Convert to Bill"}
-                      </button>
+                      </button>{" "}
+                      <button className="link-btn" onClick={() => handleCancel(po)} disabled={busyId === po.id}>Cancel</button>
+                      </>
                     )}
                     {po.status === "billed" && (
                       <Link className="link-btn" to="/vendor-bills">
@@ -156,7 +200,7 @@ export default function PurchaseOrdersPage() {
       )}
 
       {modalOpen && (
-        <Modal title="New Purchase Order" onClose={() => setModalOpen(false)}>
+        <Modal title={editingOrder ? `Edit Purchase Order #${editingOrder.id}` : "New Purchase Order"} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSubmit}>
             <label>
               Vendor
@@ -198,6 +242,7 @@ export default function PurchaseOrdersPage() {
                 </select>
                 <input type="number" min="1" placeholder="Qty" value={item.quantity} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, quantity: e.target.value } : it)))} required />
                 <input type="number" step="0.01" placeholder="Unit Price ₹" value={item.unit_price_cents} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, unit_price_cents: e.target.value } : it)))} required />
+                <input type="number" min="0" max="100" placeholder="Tax %" value={item.tax_percent} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, tax_percent: e.target.value } : it)))} />
                 {items.length > 1 && (
                   <button type="button" className="icon-btn" onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove line">
                     &times;
@@ -215,7 +260,7 @@ export default function PurchaseOrdersPage() {
                 Cancel
               </button>
               <button type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Create draft"}
+                {saving ? "Saving..." : editingOrder ? "Save changes" : "Create draft"}
               </button>
             </div>
           </form>

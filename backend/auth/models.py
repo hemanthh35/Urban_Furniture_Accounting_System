@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, ForeignKey
 from core.database import Base
 
 # Only 3 roles exist per the problem statement: Admin, Invoicing User (accountant),
@@ -18,3 +18,4 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False)
     contact_id = Column(Integer, ForeignKey("contacts.id"), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)

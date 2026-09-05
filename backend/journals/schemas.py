@@ -14,6 +14,10 @@ class JournalOut(BaseModel):
     name: str
     type: str
     default_account_id: int | None
+    is_archived: bool = False
+
+    class Config:
+        from_attributes = True
 
 
 class JournalEntryLineOut(BaseModel):
