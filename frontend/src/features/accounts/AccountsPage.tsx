@@ -1,0 +1,108 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { accountsApi, type Account } from "../../api/accounts";
+import { ApiError } from "../../api/client";
+import Modal from "../../components/Modal";
+
+export default function AccountsPage() {
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [type, setType] = useState("Asset");
+
+  async function load() {
+    setLoading(true);
+    try {
+      setAccounts(await accountsApi.list());
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    setSaving(true);
+    try {
+      await accountsApi.create({ name, type });
+      setModalOpen(false);
+      setName("");
+      await load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not create account");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="page-head">
+        <div>
+          <h1>Chart of Accounts</h1>
+          <p className="page-sub">The master list of ledger buckets every transaction posts into.</p>
+        </div>
+        <button onClick={() => setModalOpen(true)}>+ New Account</button>
+      </div>
+
+      {loading ? (
+        <div className="empty-state">Loading...</div>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Account Name</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {accounts.map((a) => (
+                <tr key={a.id}>
+                  <td>{a.name}</td>
+                  <td>{a.type}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {modalOpen && (
+        <Modal title="New Account" onClose={() => setModalOpen(false)}>
+          <form onSubmit={handleSubmit}>
+            <label>
+              Account Name
+              <input value={name} onChange={(e) => setName(e.target.value)} required />
+            </label>
+            <label>
+              Type
+              <select value={type} onChange={(e) => setType(e.target.value)}>
+                <option value="Asset">Asset</option>
+                <option value="Liability">Liability</option>
+                <option value="Expense">Expense</option>
+                <option value="Income">Income</option>
+                <option value="Capital">Capital</option>
+              </select>
+            </label>
+            {formError && <div className="form-error">{formError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="secondary" onClick={() => setModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="submit" disabled={saving}>
+                {saving ? "Saving..." : "Create"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
