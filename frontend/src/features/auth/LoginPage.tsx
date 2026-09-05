@@ -7,7 +7,7 @@ import { useAuth } from "./AuthContext";
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await authApi.login(email, password);
+      const res = await authApi.login(loginId, password);
       login(res.access_token, res.role);
       // A "contact" role user has no access to "/" (that's staff-only) - send
       // them straight to their own portal instead, or they'd land on a page
@@ -36,8 +36,8 @@ export default function LoginPage() {
         <h1>Urban Furniture</h1>
         <p className="auth-sub">Accounting System</p>
         <label>
-          Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          Login ID
+          <input value={loginId} onChange={(e) => setLoginId(e.target.value)} required autoFocus />
         </label>
         <label>
           Password

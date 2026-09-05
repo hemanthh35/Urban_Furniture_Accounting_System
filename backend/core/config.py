@@ -15,5 +15,16 @@ class Settings(BaseSettings):
 
     groq_api_key: str = ""
 
+    # Background jobs (Ledger Integrity Check, Bulk Invoice PDF Export) run through
+    # this Redis-backed queue, separate from the request/response cycle.
+    redis_url: str = "redis://localhost:6380/0"
+
+    # Contact-role users pay their own Customer Invoice online through Razorpay
+    # test mode. Empty by default - checkout fails loudly until these are set,
+    # instead of silently doing nothing.
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+
 
 settings = Settings()

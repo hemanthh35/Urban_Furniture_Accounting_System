@@ -10,6 +10,7 @@ from auth.router import router as auth_router
 from budgets.router import router as budgets_router
 from contacts.router import router as contacts_router
 from core.errors import AppError
+from jobs.router import router as jobs_router
 from journals.router import router as journals_router
 from payments.router import router as payments_router
 from products.router import router as products_router
@@ -23,6 +24,7 @@ app = FastAPI(title="Urban Furniture Accounting System")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:5175"],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,3 +52,4 @@ app.include_router(payments_router)
 app.include_router(reports_router)
 app.include_router(journals_router)
 app.include_router(stock_router)
+app.include_router(jobs_router)

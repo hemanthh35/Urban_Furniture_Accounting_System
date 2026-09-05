@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.security import CurrentUser, require_roles
 from payments import service
-from payments.schemas import CustomerPaymentCreate, PaymentOut, VendorPaymentCreate
+from payments.schemas import CheckoutResponse, CustomerPaymentCreate, PaymentOut, VendorPaymentCreate
 from purchases.service import get_purchase_order, get_vendor_bill
 from sales.service import get_customer_invoice
 
@@ -41,3 +41,19 @@ def pay_vendor_bill(bill_id: int, payload: VendorPaymentCreate, db: Session = De
 def pay_customer_invoice(invoice_id: int, payload: CustomerPaymentCreate, db: Session = Depends(get_db), user: CurrentUser = Depends(CAN_PAY_CUSTOMER)):
     contact_id = user.contact_id if user.role == "contact" else None
     return service.pay_customer_invoice(db, invoice_id, payload.method, payload.amount_cents, payload.date, contact_id)
+
+
+@router.post("/customer-invoices/{invoice_id}/checkout", response_model=CheckoutResponse)
+def create_invoice_checkout(invoice_id: int, db: Session = Depends(get_db), user: CurrentUser = Depends(CAN_PAY_CUSTOMER)):
+    contact_id = user.contact_id if user.role == "contact" else None
+    return service.create_invoice_checkout(db, invoice_id, contact_id)
+
+
+@router.post("/payments/webhook", status_code=200)
+async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
+    """Called by Razorpay's servers, not the frontend - no JWT auth here. Trust is
+    established entirely through the HMAC signature check inside handle_razorpay_webhook."""
+    raw_body = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature")
+    service.handle_razorpay_webhook(db, raw_body, signature)
+    return {"status": "ok"}

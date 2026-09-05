@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from auth import service
-from auth.schemas import ChangePasswordRequest, LoginRequest, SignupRequest, TokenResponse, UserOut
+from auth.schemas import AdminUserCreate, ChangePasswordRequest, LoginRequest, SignupRequest, TokenResponse, UserOut
 from core.database import get_db
 from core.security import CurrentUser, require_roles
 
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/signup", response_model=TokenResponse)
 def signup(payload: SignupRequest, db: Session = Depends(get_db)):
     service.signup(db, payload)
-    token, role = service.login(db, LoginRequest(email=payload.email, password=payload.password))
+    token, role = service.login(db, LoginRequest(login_id=payload.login_id, password=payload.password))
     return TokenResponse(access_token=token, role=role)
 
 
@@ -30,6 +30,11 @@ def change_password(payload: ChangePasswordRequest, db: Session = Depends(get_db
 @router.get("/users", response_model=list[UserOut])
 def list_users(db: Session = Depends(get_db), _user=Depends(require_roles("admin"))):
     return service.list_users(db)
+
+
+@router.post("/users", response_model=UserOut)
+def create_user(payload: AdminUserCreate, db: Session = Depends(get_db), _user=Depends(require_roles("admin"))):
+    return service.create_user(db, payload)
 
 
 @router.post("/users/{user_id}/deactivate", response_model=UserOut)

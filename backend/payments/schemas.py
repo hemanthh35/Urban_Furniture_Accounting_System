@@ -28,3 +28,11 @@ class PaymentOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CheckoutResponse(BaseModel):
+    razorpay_key_id: str
+    razorpay_order_id: str
+    amount_cents: int
+    currency: str
+    customer_invoice_id: int
