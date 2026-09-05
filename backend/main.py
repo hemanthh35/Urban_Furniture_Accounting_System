@@ -10,11 +10,13 @@ from auth.router import router as auth_router
 from budgets.router import router as budgets_router
 from contacts.router import router as contacts_router
 from core.errors import AppError
+from journals.router import router as journals_router
 from payments.router import router as payments_router
 from products.router import router as products_router
 from purchases.router import router as purchases_router
 from reports.router import router as reports_router
 from sales.router import router as sales_router
+from stock.router import router as stock_router
 
 app = FastAPI(title="Urban Furniture Accounting System")
 
@@ -46,3 +48,5 @@ app.include_router(purchases_router)
 app.include_router(sales_router)
 app.include_router(payments_router)
 app.include_router(reports_router)
+app.include_router(journals_router)
+app.include_router(stock_router)

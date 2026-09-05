@@ -15,6 +15,7 @@ class SalesOrder(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     customer_id = Column(Integer, ForeignKey("contacts.id"), nullable=False)
+    analytic_account_id = Column(Integer, ForeignKey("analytic_accounts.id"), nullable=True)
     order_date = Column(Date, nullable=False)
     status = Column(String(20), nullable=False, default="draft")
 

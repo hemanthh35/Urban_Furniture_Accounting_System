@@ -7,6 +7,7 @@ export default function AnalyticAccountsPage() {
   const [items, setItems] = useState<AnalyticAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<AnalyticAccount | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -25,19 +26,49 @@ export default function AnalyticAccountsPage() {
     load();
   }, []);
 
+  function openNew() {
+    setEditingItem(null);
+    setName("");
+    setType("Income");
+    setFormError(null);
+    setModalOpen(true);
+  }
+
+  function openEdit(item: AnalyticAccount) {
+    setEditingItem(item);
+    setName(item.name);
+    setType(item.type);
+    setFormError(null);
+    setModalOpen(true);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
     setSaving(true);
     try {
-      await budgetsApi.createAnalyticAccount({ name, type });
+      if (editingItem) {
+        await budgetsApi.updateAnalyticAccount(editingItem.id, { name, type });
+      } else {
+        await budgetsApi.createAnalyticAccount({ name, type });
+      }
       setModalOpen(false);
       setName("");
       await load();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not create analytic account");
+      setFormError(err instanceof ApiError ? err.message : "Could not save analytic account");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleArchive(item: AnalyticAccount) {
+    if (!window.confirm(`Archive ${item.name}?`)) return;
+    try {
+      await budgetsApi.archiveAnalyticAccount(item.id);
+      await load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not archive analytic account");
     }
   }
 
@@ -48,7 +79,7 @@ export default function AnalyticAccountsPage() {
           <h1>Analytic Accounts</h1>
           <p className="page-sub">Tags for grouping income/expenses by project or department, used by Budgets.</p>
         </div>
-        <button onClick={() => setModalOpen(true)}>+ New Analytic Account</button>
+        <button onClick={openNew}>+ New Analytic Account</button>
       </div>
 
       {loading ? (
@@ -60,6 +91,7 @@ export default function AnalyticAccountsPage() {
               <tr>
                 <th>Name</th>
                 <th>Type</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -67,6 +99,10 @@ export default function AnalyticAccountsPage() {
                 <tr key={a.id}>
                   <td>{a.name}</td>
                   <td>{a.type}</td>
+                  <td>
+                    <button className="secondary" onClick={() => openEdit(a)}>Edit</button>{" "}
+                    <button className="secondary" onClick={() => handleArchive(a)}>Archive</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -75,7 +111,7 @@ export default function AnalyticAccountsPage() {
       )}
 
       {modalOpen && (
-        <Modal title="New Analytic Account" onClose={() => setModalOpen(false)}>
+        <Modal title={editingItem ? "Edit Analytic Account" : "New Analytic Account"} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSubmit}>
             <label>
               Name
@@ -94,7 +130,7 @@ export default function AnalyticAccountsPage() {
                 Cancel
               </button>
               <button type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Create"}
+                {saving ? "Saving..." : editingItem ? "Save" : "Create"}
               </button>
             </div>
           </form>

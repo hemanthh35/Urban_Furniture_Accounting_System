@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -12,15 +14,15 @@ CAN_VIEW = require_roles("admin", "accountant")
 
 
 @router.get("/balance-sheet", response_model=BalanceSheet)
-def get_balance_sheet(db: Session = Depends(get_db), _user=Depends(CAN_VIEW)):
-    return service.balance_sheet(db)
+def get_balance_sheet(from_date: date | None = None, to_date: date | None = None, db: Session = Depends(get_db), _user=Depends(CAN_VIEW)):
+    return service.balance_sheet(db, from_date, to_date)
 
 
 @router.get("/profit-and-loss", response_model=ProfitAndLoss)
-def get_profit_and_loss(db: Session = Depends(get_db), _user=Depends(CAN_VIEW)):
-    return service.profit_and_loss(db)
+def get_profit_and_loss(from_date: date | None = None, to_date: date | None = None, db: Session = Depends(get_db), _user=Depends(CAN_VIEW)):
+    return service.profit_and_loss(db, from_date, to_date)
 
 
 @router.get("/budget-report", response_model=BudgetReport)
-def get_budget_report(db: Session = Depends(get_db), _user=Depends(CAN_VIEW)):
-    return service.budget_report(db)
+def get_budget_report(from_date: date | None = None, to_date: date | None = None, db: Session = Depends(get_db), _user=Depends(CAN_VIEW)):
+    return service.budget_report(db, from_date, to_date)

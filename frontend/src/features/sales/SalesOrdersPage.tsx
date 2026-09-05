@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { salesApi, type SalesOrder } from "../../api/sales";
 import { contactsApi, type Contact } from "../../api/contacts";
 import { productsApi, type Product } from "../../api/products";
+import { budgetsApi, type AnalyticAccount } from "../../api/budgets";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 
@@ -13,15 +14,20 @@ export default function SalesOrdersPage() {
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [customers, setCustomers] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [invoicingSo, setInvoicingSo] = useState<SalesOrder | null>(null);
 
   const [customerId, setCustomerId] = useState("");
+  const [analyticAccountId, setAnalyticAccountId] = useState("");
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
   const [items, setItems] = useState<DraftItem[]>([emptyItem()]);
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
+  const [invoiceDueDate, setInvoiceDueDate] = useState("");
 
   const customerName = (id: number) => customers.find((c) => c.id === id)?.name ?? `#${id}`;
   const productName = (id: number) => products.find((p) => p.id === id)?.name ?? `#${id}`;
@@ -29,10 +35,11 @@ export default function SalesOrdersPage() {
   async function load() {
     setLoading(true);
     try {
-      const [so, contacts, prods] = await Promise.all([salesApi.list(), contactsApi.list(), productsApi.list()]);
+      const [so, contacts, prods, analytic] = await Promise.all([salesApi.list(), contactsApi.list(), productsApi.list(), budgetsApi.listAnalyticAccounts()]);
       setOrders(so);
       setCustomers(contacts.filter((c) => c.type === "Customer" || c.type === "Both"));
       setProducts(prods);
+      setAnalyticAccounts(analytic);
     } finally {
       setLoading(false);
     }
@@ -49,6 +56,7 @@ export default function SalesOrdersPage() {
     try {
       await salesApi.create({
         customer_id: parseInt(customerId, 10),
+        analytic_account_id: analyticAccountId ? parseInt(analyticAccountId, 10) : null,
         order_date: orderDate,
         items: items
           .filter((i) => i.product_id && i.quantity && i.unit_price_cents)
@@ -61,6 +69,7 @@ export default function SalesOrdersPage() {
       });
       setModalOpen(false);
       setCustomerId("");
+      setAnalyticAccountId("");
       setItems([emptyItem()]);
       await load();
     } catch (err) {
@@ -70,13 +79,22 @@ export default function SalesOrdersPage() {
     }
   }
 
-  async function handleGenerateInvoice(so: SalesOrder) {
-    setBusyId(so.id);
+  function openGenerateInvoice(so: SalesOrder) {
+    setInvoicingSo(so);
+    setInvoiceDate(new Date().toISOString().slice(0, 10));
+    setInvoiceDueDate("");
+  }
+
+  async function handleGenerateInvoice(e: FormEvent) {
+    e.preventDefault();
+    if (!invoicingSo) return;
+    setBusyId(invoicingSo.id);
     try {
-      await salesApi.generateInvoice(so.id, new Date().toISOString().slice(0, 10));
+      await salesApi.generateInvoice(invoicingSo.id, invoiceDate, invoiceDueDate || null);
+      setInvoicingSo(null);
       await load();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Could not generate invoice");
+      setFormError(err instanceof ApiError ? err.message : "Could not generate invoice");
     } finally {
       setBusyId(null);
     }
@@ -121,7 +139,7 @@ export default function SalesOrdersPage() {
                   </td>
                   <td className="row-actions">
                     {so.status === "draft" && (
-                      <button className="link-btn" onClick={() => handleGenerateInvoice(so)} disabled={busyId === so.id}>
+                      <button className="link-btn" onClick={() => openGenerateInvoice(so)} disabled={busyId === so.id}>
                         {busyId === so.id ? "Generating..." : "Generate Invoice"}
                       </button>
                     )}
@@ -157,6 +175,13 @@ export default function SalesOrdersPage() {
             <label>
               Order Date
               <input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} required />
+            </label>
+            <label>
+              Budget / Analytic Account
+              <select value={analyticAccountId} onChange={(e) => setAnalyticAccountId(e.target.value)}>
+                <option value="">None</option>
+                {analyticAccounts.filter((account) => account.type === "Income").map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+              </select>
             </label>
 
             <div className="item-rows-label">Line items</div>
@@ -194,6 +219,20 @@ export default function SalesOrdersPage() {
               <button type="submit" disabled={saving}>
                 {saving ? "Saving..." : "Create draft"}
               </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {invoicingSo && (
+        <Modal title={`Generate Invoice from SO #${invoicingSo.id}`} onClose={() => setInvoicingSo(null)}>
+          <form onSubmit={handleGenerateInvoice}>
+            <label>Invoice Date<input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} required /></label>
+            <label>Due Date<input type="date" value={invoiceDueDate} onChange={(e) => setInvoiceDueDate(e.target.value)} /></label>
+            {formError && <div className="form-error">{formError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="secondary" onClick={() => setInvoicingSo(null)}>Cancel</button>
+              <button type="submit" disabled={busyId === invoicingSo.id}>{busyId === invoicingSo.id ? "Generating..." : "Create Invoice"}</button>
             </div>
           </form>
         </Modal>

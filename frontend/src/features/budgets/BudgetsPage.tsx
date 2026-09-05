@@ -9,6 +9,7 @@ export default function BudgetsPage() {
   const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -35,6 +36,28 @@ export default function BudgetsPage() {
     load();
   }, []);
 
+  function openNew() {
+    setEditingBudget(null);
+    setName("");
+    setPeriod("");
+    setResponsiblePerson("");
+    setPlannedAmount("");
+    setAnalyticAccountId("");
+    setFormError(null);
+    setModalOpen(true);
+  }
+
+  function openEdit(budget: Budget) {
+    setEditingBudget(budget);
+    setName(budget.name);
+    setPeriod(budget.period);
+    setResponsiblePerson(budget.responsible_person ?? "");
+    setPlannedAmount(String(budget.planned_amount_cents / 100));
+    setAnalyticAccountId(String(budget.analytic_account_id));
+    setFormError(null);
+    setModalOpen(true);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!analyticAccountId) {
@@ -44,13 +67,18 @@ export default function BudgetsPage() {
     setFormError(null);
     setSaving(true);
     try {
-      await budgetsApi.createBudget({
+      const payload = {
         name,
         period,
         responsible_person: responsiblePerson || null,
         planned_amount_cents: Math.round(parseFloat(plannedAmount) * 100),
         analytic_account_id: parseInt(analyticAccountId, 10),
-      });
+      };
+      if (editingBudget) {
+        await budgetsApi.updateBudget(editingBudget.id, payload);
+      } else {
+        await budgetsApi.createBudget(payload);
+      }
       setModalOpen(false);
       setName("");
       setPeriod("");
@@ -59,9 +87,19 @@ export default function BudgetsPage() {
       setAnalyticAccountId("");
       await load();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not create budget");
+      setFormError(err instanceof ApiError ? err.message : "Could not save budget");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleArchive(budget: Budget) {
+    if (!window.confirm(`Archive ${budget.name}?`)) return;
+    try {
+      await budgetsApi.archiveBudget(budget.id);
+      await load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not archive budget");
     }
   }
 
@@ -69,7 +107,7 @@ export default function BudgetsPage() {
     <div>
       <div className="page-head">
         <h1>Budgets</h1>
-        <button onClick={() => setModalOpen(true)}>+ New Budget</button>
+        <button onClick={openNew}>+ New Budget</button>
       </div>
 
       {loading ? (
@@ -86,6 +124,7 @@ export default function BudgetsPage() {
                 <th>Responsible</th>
                 <th>Analytic Account</th>
                 <th>Planned Amount</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -96,6 +135,10 @@ export default function BudgetsPage() {
                   <td className="muted">{b.responsible_person ?? "-"}</td>
                   <td>{analyticAccountName(b.analytic_account_id)}</td>
                   <td className="mono">{formatMoney(b.planned_amount_cents)}</td>
+                  <td>
+                    <button className="secondary" onClick={() => openEdit(b)}>Edit</button>{" "}
+                    <button className="secondary" onClick={() => handleArchive(b)}>Archive</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -104,7 +147,7 @@ export default function BudgetsPage() {
       )}
 
       {modalOpen && (
-        <Modal title="New Budget" onClose={() => setModalOpen(false)}>
+        <Modal title={editingBudget ? "Edit Budget" : "New Budget"} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSubmit}>
             <label>
               Budget Name
@@ -141,7 +184,7 @@ export default function BudgetsPage() {
                 Cancel
               </button>
               <button type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Create"}
+                {saving ? "Saving..." : editingBudget ? "Save" : "Create"}
               </button>
             </div>
           </form>

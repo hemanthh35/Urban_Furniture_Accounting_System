@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { purchasesApi, type PurchaseOrder } from "../../api/purchases";
 import { contactsApi, type Contact } from "../../api/contacts";
 import { productsApi, type Product } from "../../api/products";
+import { budgetsApi, type AnalyticAccount } from "../../api/budgets";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 
@@ -13,15 +14,20 @@ export default function PurchaseOrdersPage() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [vendors, setVendors] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [convertingPo, setConvertingPo] = useState<PurchaseOrder | null>(null);
 
   const [vendorId, setVendorId] = useState("");
+  const [analyticAccountId, setAnalyticAccountId] = useState("");
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
   const [items, setItems] = useState<DraftItem[]>([emptyItem()]);
+  const [billDate, setBillDate] = useState(new Date().toISOString().slice(0, 10));
+  const [billDueDate, setBillDueDate] = useState("");
 
   const vendorName = (id: number) => vendors.find((v) => v.id === id)?.name ?? `#${id}`;
   const productName = (id: number) => products.find((p) => p.id === id)?.name ?? `#${id}`;
@@ -29,10 +35,11 @@ export default function PurchaseOrdersPage() {
   async function load() {
     setLoading(true);
     try {
-      const [po, contacts, prods] = await Promise.all([purchasesApi.list(), contactsApi.list(), productsApi.list()]);
+      const [po, contacts, prods, analytic] = await Promise.all([purchasesApi.list(), contactsApi.list(), productsApi.list(), budgetsApi.listAnalyticAccounts()]);
       setOrders(po);
       setVendors(contacts.filter((c) => c.type === "Vendor" || c.type === "Both"));
       setProducts(prods);
+      setAnalyticAccounts(analytic);
     } finally {
       setLoading(false);
     }
@@ -49,6 +56,7 @@ export default function PurchaseOrdersPage() {
     try {
       await purchasesApi.create({
         vendor_id: parseInt(vendorId, 10),
+        analytic_account_id: analyticAccountId ? parseInt(analyticAccountId, 10) : null,
         order_date: orderDate,
         items: items
           .filter((i) => i.product_id && i.quantity && i.unit_price_cents)
@@ -60,6 +68,7 @@ export default function PurchaseOrdersPage() {
       });
       setModalOpen(false);
       setVendorId("");
+      setAnalyticAccountId("");
       setItems([emptyItem()]);
       await load();
     } catch (err) {
@@ -69,13 +78,22 @@ export default function PurchaseOrdersPage() {
     }
   }
 
-  async function handleConvertToBill(po: PurchaseOrder) {
-    setBusyId(po.id);
+  function openConvertToBill(po: PurchaseOrder) {
+    setConvertingPo(po);
+    setBillDate(new Date().toISOString().slice(0, 10));
+    setBillDueDate("");
+  }
+
+  async function handleConvertToBill(e: FormEvent) {
+    e.preventDefault();
+    if (!convertingPo) return;
+    setBusyId(convertingPo.id);
     try {
-      await purchasesApi.convertToBill(po.id, new Date().toISOString().slice(0, 10));
+      await purchasesApi.convertToBill(convertingPo.id, billDate, billDueDate || null);
+      setConvertingPo(null);
       await load();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Could not convert to bill");
+      setFormError(err instanceof ApiError ? err.message : "Could not convert to bill");
     } finally {
       setBusyId(null);
     }
@@ -120,7 +138,7 @@ export default function PurchaseOrdersPage() {
                   </td>
                   <td className="row-actions">
                     {po.status === "draft" && (
-                      <button className="link-btn" onClick={() => handleConvertToBill(po)} disabled={busyId === po.id}>
+                      <button className="link-btn" onClick={() => openConvertToBill(po)} disabled={busyId === po.id}>
                         {busyId === po.id ? "Converting..." : "Convert to Bill"}
                       </button>
                     )}
@@ -157,6 +175,13 @@ export default function PurchaseOrdersPage() {
               Order Date
               <input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} required />
             </label>
+            <label>
+              Budget / Analytic Account
+              <select value={analyticAccountId} onChange={(e) => setAnalyticAccountId(e.target.value)}>
+                <option value="">None</option>
+                {analyticAccounts.filter((account) => account.type === "Expenses").map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+              </select>
+            </label>
 
             <div className="item-rows-label">Line items</div>
             {items.map((item, i) => (
@@ -192,6 +217,20 @@ export default function PurchaseOrdersPage() {
               <button type="submit" disabled={saving}>
                 {saving ? "Saving..." : "Create draft"}
               </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {convertingPo && (
+        <Modal title={`Convert PO #${convertingPo.id} to Bill`} onClose={() => setConvertingPo(null)}>
+          <form onSubmit={handleConvertToBill}>
+            <label>Bill Date<input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} required /></label>
+            <label>Due Date<input type="date" value={billDueDate} onChange={(e) => setBillDueDate(e.target.value)} /></label>
+            {formError && <div className="form-error">{formError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="secondary" onClick={() => setConvertingPo(null)}>Cancel</button>
+              <button type="submit" disabled={busyId === convertingPo.id}>{busyId === convertingPo.id ? "Converting..." : "Create Bill"}</button>
             </div>
           </form>
         </Modal>

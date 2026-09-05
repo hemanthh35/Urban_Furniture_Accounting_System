@@ -5,10 +5,13 @@ import { formatMoney } from "../../utils/money";
 export default function BudgetReportPage() {
   const [data, setData] = useState<BudgetReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   useEffect(() => {
-    reportsApi.budgetReport().then(setData).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    reportsApi.budgetReport(fromDate, toDate).then(setData).finally(() => setLoading(false));
+  }, [fromDate, toDate]);
 
   if (loading) return <div className="empty-state">Loading...</div>;
 
@@ -16,6 +19,10 @@ export default function BudgetReportPage() {
     <div>
       <div className="page-head">
         <h1>Budget Report</h1>
+        <div>
+          <label>From <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></label>{" "}
+          <label>To <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></label>
+        </div>
       </div>
 
       {!data || data.rows.length === 0 ? (
@@ -29,6 +36,7 @@ export default function BudgetReportPage() {
                 <th>Period</th>
                 <th>Analytic Account</th>
                 <th>Planned Amount</th>
+                <th>Actual Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -38,6 +46,7 @@ export default function BudgetReportPage() {
                   <td className="muted">{r.period}</td>
                   <td className="muted">{r.analytic_account_name}</td>
                   <td className="mono">{formatMoney(r.planned_amount_cents)}</td>
+                  <td className="mono">{formatMoney(r.actual_amount_cents)}</td>
                 </tr>
               ))}
             </tbody>

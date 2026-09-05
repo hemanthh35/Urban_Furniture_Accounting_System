@@ -5,13 +5,13 @@ from sqlalchemy.orm import Session
 
 from auth.models import User
 from contacts.models import Contact
-from contacts.schemas import ContactCreate
+from contacts.schemas import ContactCreate, ContactUpdate
 from core.errors import AppError
 from core.security import hash_password
 
 
 def list_contacts(db: Session) -> list[Contact]:
-    return db.query(Contact).all()
+    return db.query(Contact).filter(Contact.is_archived.is_(False)).all()
 
 
 def get_contact(db: Session, contact_id: int) -> Contact:
@@ -40,3 +40,18 @@ def create_contact(db: Session, payload: ContactCreate) -> Contact:
     db.commit()
     db.refresh(contact)
     return contact
+
+
+def update_contact(db: Session, contact_id: int, payload: ContactUpdate) -> Contact:
+    contact = get_contact(db, contact_id)
+    for field, value in payload.model_dump().items():
+        setattr(contact, field, value)
+    db.commit()
+    db.refresh(contact)
+    return contact
+
+
+def archive_contact(db: Session, contact_id: int) -> None:
+    contact = get_contact(db, contact_id)
+    contact.is_archived = True
+    db.commit()

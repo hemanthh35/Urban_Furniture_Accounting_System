@@ -11,6 +11,8 @@ const STAFF_NAV = [
   { to: "/accounts", label: "Chart of Accounts" },
   { to: "/analytic-accounts", label: "Analytic Accounts" },
   { to: "/budgets", label: "Budgets" },
+  { to: "/journals", label: "Journals" },
+  { to: "/stock", label: "Stock Report" },
   { to: "/purchase-orders", label: "Purchase Orders" },
   { to: "/vendor-bills", label: "Vendor Bills" },
   { to: "/sales-orders", label: "Sales Orders" },

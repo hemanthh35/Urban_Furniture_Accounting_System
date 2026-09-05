@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.security import CurrentUser, require_roles
 from sales import service
-from sales.schemas import CustomerInvoiceCreate, CustomerInvoiceOut, SalesOrderCreate, SalesOrderOut
+from sales.schemas import CustomerInvoiceCreate, CustomerInvoiceDetailOut, CustomerInvoiceOut, SalesOrderCreate, SalesOrderOut
 
 router = APIRouter(tags=["sales"])
 
@@ -35,3 +35,14 @@ def list_customer_invoices(db: Session = Depends(get_db), user: CurrentUser = De
     # A contact only ever sees invoices tied to their own contact_id - staff see everything.
     contact_id = user.contact_id if user.role == "contact" else None
     return service.list_customer_invoices(db, contact_id=contact_id)
+
+
+@router.get("/customer-invoices/{invoice_id}", response_model=CustomerInvoiceDetailOut)
+def get_customer_invoice_detail(invoice_id: int, db: Session = Depends(get_db), user: CurrentUser = Depends(CAN_READ_INVOICES)):
+    invoice = service.get_customer_invoice(db, invoice_id)
+    if user.role == "contact":
+        so = service.get_sales_order(db, invoice.sales_order_id)
+        if so.customer_id != user.contact_id:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=403, detail="You can only view your own invoices")
+    return service.get_customer_invoice_detail(db, invoice_id)

@@ -11,7 +11,11 @@ export interface AccountCreate {
   type: string;
 }
 
+export type AccountUpdate = AccountCreate;
+
 export const accountsApi = {
   list: () => request<Account[]>("/accounts"),
   create: (payload: AccountCreate) => request<Account>("/accounts", { method: "POST", body: payload }),
+  update: (id: number, payload: AccountUpdate) => request<Account>(`/accounts/${id}`, { method: "PUT", body: payload }),
+  archive: (id: number) => request<void>(`/accounts/${id}/archive`, { method: "POST" }),
 };

@@ -7,6 +7,7 @@ export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -47,12 +48,33 @@ export default function ContactsPage() {
     setFormError(null);
   }
 
+  function openNew() {
+    setEditingContact(null);
+    resetForm();
+    setModalOpen(true);
+  }
+
+  function openEdit(contact: Contact) {
+    setEditingContact(contact);
+    setName(contact.name);
+    setType(contact.type);
+    setEmail(contact.email ?? "");
+    setMobile(contact.mobile ?? "");
+    setCity(contact.city ?? "");
+    setState(contact.state ?? "");
+    setPincode(contact.pincode ?? "");
+    setCreateLogin(false);
+    setLoginPassword("");
+    setFormError(null);
+    setModalOpen(true);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
     setSaving(true);
     try {
-      await contactsApi.create({
+      const payload = {
         name,
         type,
         email: email || null,
@@ -61,14 +83,29 @@ export default function ContactsPage() {
         state: state || null,
         pincode: pincode || null,
         create_login_password: createLogin ? loginPassword : null,
-      });
+      };
+      if (editingContact) {
+        await contactsApi.update(editingContact.id, payload);
+      } else {
+        await contactsApi.create(payload);
+      }
       setModalOpen(false);
       resetForm();
       await load();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not create contact");
+      setFormError(err instanceof ApiError ? err.message : "Could not save contact");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleArchive(contact: Contact) {
+    if (!window.confirm(`Archive ${contact.name}?`)) return;
+    try {
+      await contactsApi.archive(contact.id);
+      await load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not archive contact");
     }
   }
 
@@ -76,7 +113,7 @@ export default function ContactsPage() {
     <div>
       <div className="page-head">
         <h1>Contacts</h1>
-        <button onClick={() => setModalOpen(true)}>+ New Contact</button>
+        <button onClick={openNew}>+ New Contact</button>
       </div>
 
       {loading ? (
@@ -93,6 +130,7 @@ export default function ContactsPage() {
                 <th>Email</th>
                 <th>Mobile</th>
                 <th>City</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -103,6 +141,10 @@ export default function ContactsPage() {
                   <td className="muted">{c.email ?? "-"}</td>
                   <td className="muted">{c.mobile ?? "-"}</td>
                   <td className="muted">{c.city ?? "-"}</td>
+                  <td>
+                    <button className="secondary" onClick={() => openEdit(c)}>Edit</button>{" "}
+                    <button className="secondary" onClick={() => handleArchive(c)}>Archive</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -111,7 +153,7 @@ export default function ContactsPage() {
       )}
 
       {modalOpen && (
-        <Modal title="New Contact" onClose={() => setModalOpen(false)}>
+        <Modal title={editingContact ? "Edit Contact" : "New Contact"} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSubmit}>
             <label>
               Name
@@ -149,7 +191,7 @@ export default function ContactsPage() {
               <input type="checkbox" checked={createLogin} onChange={(e) => setCreateLogin(e.target.checked)} />
               Give this contact portal access (they can log in to see their own invoices/bills)
             </label>
-            {createLogin && (
+            {!editingContact && createLogin && (
               <label>
                 Portal password
                 <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required={createLogin} />
@@ -161,7 +203,7 @@ export default function ContactsPage() {
                 Cancel
               </button>
               <button type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Create"}
+                {saving ? "Saving..." : editingContact ? "Save" : "Create"}
               </button>
             </div>
           </form>

@@ -17,6 +17,8 @@ import CustomerInvoicesPage from "./features/sales/CustomerInvoicesPage";
 import BalanceSheetPage from "./features/reports/BalanceSheetPage";
 import ProfitAndLossPage from "./features/reports/ProfitAndLossPage";
 import BudgetReportPage from "./features/reports/BudgetReportPage";
+import JournalsPage from "./features/journals/JournalsPage";
+import StockReportPage from "./features/stock/StockReportPage";
 
 const STAFF = ["admin", "accountant"];
 
@@ -54,6 +56,8 @@ export default function App() {
           <Route path="/accounts" element={<Staff><AccountsPage /></Staff>} />
           <Route path="/analytic-accounts" element={<Staff><AnalyticAccountsPage /></Staff>} />
           <Route path="/budgets" element={<Staff><BudgetsPage /></Staff>} />
+          <Route path="/journals" element={<Staff><JournalsPage /></Staff>} />
+          <Route path="/stock" element={<Staff><StockReportPage /></Staff>} />
           <Route path="/purchase-orders" element={<Staff><PurchaseOrdersPage /></Staff>} />
           <Route path="/vendor-bills" element={<Staff><VendorBillsPage /></Staff>} />
           <Route path="/sales-orders" element={<Staff><SalesOrdersPage /></Staff>} />

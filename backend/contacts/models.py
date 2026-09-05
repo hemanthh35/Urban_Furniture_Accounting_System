@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String
 from core.database import Base
 
 # A Contact can be a Customer, a Vendor, or Both (the same real-world business or
@@ -24,3 +24,4 @@ class Contact(Base):
     state = Column(String(100), nullable=True)
     pincode = Column(String(20), nullable=True)
     profile_image = Column(String(512), nullable=True)  # stored as a URL/path, not raw bytes
+    is_archived = Column(Boolean, nullable=False, default=False)

@@ -5,10 +5,13 @@ import { formatMoney } from "../../utils/money";
 export default function ProfitAndLossPage() {
   const [data, setData] = useState<ProfitAndLoss | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   useEffect(() => {
-    reportsApi.profitAndLoss().then(setData).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    reportsApi.profitAndLoss(fromDate, toDate).then(setData).finally(() => setLoading(false));
+  }, [fromDate, toDate]);
 
   if (loading) return <div className="empty-state">Loading...</div>;
   if (!data) return null;
@@ -17,6 +20,10 @@ export default function ProfitAndLossPage() {
     <div>
       <div className="page-head">
         <h1>Profit &amp; Loss</h1>
+        <div>
+          <label>From <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></label>{" "}
+          <label>To <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></label>
+        </div>
       </div>
 
       <div className="table-wrap" style={{ marginBottom: 24 }}>

@@ -12,6 +12,7 @@ class SalesOrderItemCreate(BaseModel):
 
 class SalesOrderCreate(BaseModel):
     customer_id: int
+    analytic_account_id: int | None = None
     order_date: date
     items: list[SalesOrderItemCreate]
 
@@ -30,6 +31,7 @@ class SalesOrderItemOut(BaseModel):
 class SalesOrderOut(BaseModel):
     id: int
     customer_id: int
+    analytic_account_id: int | None
     order_date: date
     status: str
     items: list[SalesOrderItemOut]
@@ -53,3 +55,15 @@ class CustomerInvoiceOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CustomerInvoiceDetailOut(CustomerInvoiceOut):
+    items: list[SalesOrderItemOut]
+    payments: list["PaymentSummary"]
+
+
+class PaymentSummary(BaseModel):
+    id: int
+    method: str
+    amount_cents: int
+    date: date

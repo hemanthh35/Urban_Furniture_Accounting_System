@@ -34,7 +34,7 @@ def _get_or_create_journal(db: Session, journal_type: str) -> Journal:
 
 def _post(
     db: Session, journal_type: str, entry_date: date, reference: str,
-    debit_account: str, credit_account: str, amount_cents: int,
+    debit_account: str, credit_account: str, amount_cents: int, analytic_account_id: int | None = None,
 ) -> JournalEntry:
     journal = _get_or_create_journal(db, journal_type)
     debit = _get_account(db, debit_account)
@@ -44,22 +44,22 @@ def _post(
     db.add(entry)
     db.flush()  # need entry.id before writing its lines
 
-    db.add(JournalEntryLine(journal_entry_id=entry.id, account_id=debit.id, debit_cents=amount_cents, credit_cents=0))
-    db.add(JournalEntryLine(journal_entry_id=entry.id, account_id=credit.id, debit_cents=0, credit_cents=amount_cents))
+    db.add(JournalEntryLine(journal_entry_id=entry.id, account_id=debit.id, analytic_account_id=analytic_account_id, debit_cents=amount_cents, credit_cents=0))
+    db.add(JournalEntryLine(journal_entry_id=entry.id, account_id=credit.id, analytic_account_id=analytic_account_id, debit_cents=0, credit_cents=amount_cents))
     db.flush()
     return entry
 
 
-def post_vendor_bill(db: Session, bill_date: date, reference: str, amount_cents: int) -> JournalEntry:
+def post_vendor_bill(db: Session, bill_date: date, reference: str, amount_cents: int, analytic_account_id: int | None = None) -> JournalEntry:
     """Problem statement's own example: 'Purchase made on credit -> Debit: Purchase
     Expense, Credit: Creditor'."""
-    return _post(db, "Purchase", bill_date, reference, "Purchase Expense", "Creditors", amount_cents)
+    return _post(db, "Purchase", bill_date, reference, "Purchase Expense", "Creditors", amount_cents, analytic_account_id)
 
 
-def post_customer_invoice(db: Session, invoice_date: date, reference: str, amount_cents: int) -> JournalEntry:
+def post_customer_invoice(db: Session, invoice_date: date, reference: str, amount_cents: int, analytic_account_id: int | None = None) -> JournalEntry:
     """Mirror of the vendor bill rule for the sales side: raising an invoice means
     the customer now owes us money (Debtors up) and we've earned income."""
-    return _post(db, "Sales", invoice_date, reference, "Debtors", "Sale Income", amount_cents)
+    return _post(db, "Sales", invoice_date, reference, "Debtors", "Sale Income", amount_cents, analytic_account_id)
 
 
 def post_customer_payment(db: Session, payment_date: date, reference: str, amount_cents: int, method: str) -> JournalEntry:

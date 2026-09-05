@@ -7,6 +7,7 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -25,19 +26,49 @@ export default function AccountsPage() {
     load();
   }, []);
 
+  function openNew() {
+    setEditingAccount(null);
+    setName("");
+    setType("Asset");
+    setFormError(null);
+    setModalOpen(true);
+  }
+
+  function openEdit(account: Account) {
+    setEditingAccount(account);
+    setName(account.name);
+    setType(account.type);
+    setFormError(null);
+    setModalOpen(true);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
     setSaving(true);
     try {
-      await accountsApi.create({ name, type });
+      if (editingAccount) {
+        await accountsApi.update(editingAccount.id, { name, type });
+      } else {
+        await accountsApi.create({ name, type });
+      }
       setModalOpen(false);
       setName("");
       await load();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not create account");
+      setFormError(err instanceof ApiError ? err.message : "Could not save account");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleArchive(account: Account) {
+    if (!window.confirm(`Archive ${account.name}?`)) return;
+    try {
+      await accountsApi.archive(account.id);
+      await load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not archive account");
     }
   }
 
@@ -48,7 +79,7 @@ export default function AccountsPage() {
           <h1>Chart of Accounts</h1>
           <p className="page-sub">The master list of ledger buckets every transaction posts into.</p>
         </div>
-        <button onClick={() => setModalOpen(true)}>+ New Account</button>
+        <button onClick={openNew}>+ New Account</button>
       </div>
 
       {loading ? (
@@ -60,6 +91,7 @@ export default function AccountsPage() {
               <tr>
                 <th>Account Name</th>
                 <th>Type</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -67,6 +99,10 @@ export default function AccountsPage() {
                 <tr key={a.id}>
                   <td>{a.name}</td>
                   <td>{a.type}</td>
+                  <td>
+                    <button className="secondary" onClick={() => openEdit(a)}>Edit</button>{" "}
+                    <button className="secondary" onClick={() => handleArchive(a)}>Archive</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -75,7 +111,7 @@ export default function AccountsPage() {
       )}
 
       {modalOpen && (
-        <Modal title="New Account" onClose={() => setModalOpen(false)}>
+        <Modal title={editingAccount ? "Edit Account" : "New Account"} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSubmit}>
             <label>
               Account Name
@@ -97,7 +133,7 @@ export default function AccountsPage() {
                 Cancel
               </button>
               <button type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Create"}
+                {saving ? "Saving..." : editingAccount ? "Save" : "Create"}
               </button>
             </div>
           </form>

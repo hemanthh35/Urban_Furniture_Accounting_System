@@ -11,6 +11,7 @@ class PurchaseOrderItemCreate(BaseModel):
 
 class PurchaseOrderCreate(BaseModel):
     vendor_id: int
+    analytic_account_id: int | None = None
     order_date: date
     items: list[PurchaseOrderItemCreate]
 
@@ -28,6 +29,7 @@ class PurchaseOrderItemOut(BaseModel):
 class PurchaseOrderOut(BaseModel):
     id: int
     vendor_id: int
+    analytic_account_id: int | None
     order_date: date
     status: str
     items: list[PurchaseOrderItemOut]
@@ -51,3 +53,15 @@ class VendorBillOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class VendorBillDetailOut(VendorBillOut):
+    items: list[PurchaseOrderItemOut]
+    payments: list["PaymentSummary"]
+
+
+class PaymentSummary(BaseModel):
+    id: int
+    method: str
+    amount_cents: int
+    date: date

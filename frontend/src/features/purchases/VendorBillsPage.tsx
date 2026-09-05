@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { purchasesApi, type VendorBill } from "../../api/purchases";
+import { purchasesApi, type VendorBill, type VendorBillDetail } from "../../api/purchases";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import { formatMoney } from "../../utils/money";
@@ -8,7 +8,9 @@ export default function VendorBillsPage() {
   const [bills, setBills] = useState<VendorBill[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingBill, setPayingBill] = useState<VendorBill | null>(null);
+  const [viewingBill, setViewingBill] = useState<VendorBillDetail | null>(null);
   const [method, setMethod] = useState("Bank");
+  const [paymentAmount, setPaymentAmount] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -31,13 +33,22 @@ export default function VendorBillsPage() {
     setFormError(null);
     setSaving(true);
     try {
-      await purchasesApi.payBill(payingBill.id, method, payingBill.amount_cents, new Date().toISOString().slice(0, 10));
+      const amountCents = Math.round(parseFloat(paymentAmount) * 100);
+      await purchasesApi.payBill(payingBill.id, method, amountCents, new Date().toISOString().slice(0, 10));
       setPayingBill(null);
       await load();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Could not record payment");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function viewBill(billId: number) {
+    try {
+      setViewingBill(await purchasesApi.getBill(billId));
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not load bill details");
     }
   }
 
@@ -77,8 +88,9 @@ export default function VendorBillsPage() {
                     <span className={b.status === "paid" ? "status-pill status-done" : "status-pill status-pending"}>{b.status}</span>
                   </td>
                   <td className="row-actions">
-                    {b.status === "unpaid" && (
-                      <button className="link-btn" onClick={() => setPayingBill(b)}>
+                    <button className="link-btn" onClick={() => viewBill(b.id)}>View</button>{" "}
+                    {b.status !== "paid" && (
+                      <button className="link-btn" onClick={() => { setPaymentAmount(String(b.amount_cents / 100)); setPayingBill(b); }}>
                         Pay
                       </button>
                     )}
@@ -94,8 +106,12 @@ export default function VendorBillsPage() {
         <Modal title={`Pay Bill #${payingBill.id}`} onClose={() => setPayingBill(null)}>
           <form onSubmit={handlePay}>
             <p>
-              Amount: <strong>{formatMoney(payingBill.amount_cents)}</strong>
+              Bill total: <strong>{formatMoney(payingBill.amount_cents)}</strong>
             </p>
+            <label>
+              Payment Amount
+              <input type="number" step="0.01" min="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} required />
+            </label>
             <label>
               Method
               <select value={method} onChange={(e) => setMethod(e.target.value)}>
@@ -113,6 +129,32 @@ export default function VendorBillsPage() {
               </button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {viewingBill && (
+        <Modal title={`Vendor Bill #${viewingBill.id}`} onClose={() => setViewingBill(null)}>
+          <p>Bill total: <strong>{formatMoney(viewingBill.amount_cents)}</strong></p>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Product ID</th><th>Quantity</th><th>Unit Price</th></tr></thead>
+              <tbody>{viewingBill.items.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.product_id}</td>
+                  <td>{item.quantity}</td>
+                  <td className="mono">{formatMoney(item.unit_price_cents)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+          <h3>Payments</h3>
+          {viewingBill.payments.length === 0 ? <p className="muted">No payments yet.</p> : (
+            <div className="table-wrap">
+              <table><thead><tr><th>Date</th><th>Method</th><th>Amount</th></tr></thead>
+                <tbody>{viewingBill.payments.map((payment) => <tr key={payment.id}><td>{payment.date}</td><td>{payment.method}</td><td className="mono">{formatMoney(payment.amount_cents)}</td></tr>)}</tbody>
+              </table>
+            </div>
+          )}
         </Modal>
       )}
     </div>

@@ -6,6 +6,10 @@ class AnalyticAccountCreate(BaseModel):
     type: str  # Income | Expenses
 
 
+class AnalyticAccountUpdate(AnalyticAccountCreate):
+    pass
+
+
 class AnalyticAccountOut(BaseModel):
     id: int
     name: str
@@ -21,6 +25,10 @@ class BudgetCreate(BaseModel):
     responsible_person: str | None = None
     planned_amount_cents: int
     analytic_account_id: int
+
+
+class BudgetUpdate(BudgetCreate):
+    pass
 
 
 class BudgetOut(BaseModel):

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.security import require_roles
 from products import service
-from products.schemas import ProductCreate, ProductOut
+from products.schemas import ProductCreate, ProductOut, ProductUpdate
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -20,3 +20,13 @@ def list_products(db: Session = Depends(get_db), _user=Depends(CAN_READ)):
 @router.post("", response_model=ProductOut)
 def create_product(payload: ProductCreate, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
     return service.create_product(db, payload)
+
+
+@router.put("/{product_id}", response_model=ProductOut)
+def update_product(product_id: int, payload: ProductUpdate, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    return service.update_product(db, product_id, payload)
+
+
+@router.post("/{product_id}/archive", status_code=204)
+def archive_product(product_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    service.archive_product(db, product_id)

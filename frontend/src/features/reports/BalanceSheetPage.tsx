@@ -5,10 +5,13 @@ import { formatMoney } from "../../utils/money";
 export default function BalanceSheetPage() {
   const [data, setData] = useState<BalanceSheet | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   useEffect(() => {
-    reportsApi.balanceSheet().then(setData).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    reportsApi.balanceSheet(fromDate, toDate).then(setData).finally(() => setLoading(false));
+  }, [fromDate, toDate]);
 
   if (loading) return <div className="empty-state">Loading...</div>;
   if (!data) return null;
@@ -17,6 +20,10 @@ export default function BalanceSheetPage() {
     <div>
       <div className="page-head">
         <h1>Balance Sheet</h1>
+        <div>
+          <label>From <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></label>{" "}
+          <label>To <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></label>
+        </div>
       </div>
 
       <div className="table-wrap" style={{ marginBottom: 24 }}>

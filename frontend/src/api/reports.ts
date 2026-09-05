@@ -27,6 +27,7 @@ export interface BudgetReportRow {
   period: string;
   analytic_account_name: string;
   planned_amount_cents: number;
+  actual_amount_cents: number;
 }
 
 export interface BudgetReport {
@@ -34,7 +35,15 @@ export interface BudgetReport {
 }
 
 export const reportsApi = {
-  balanceSheet: () => request<BalanceSheet>("/reports/balance-sheet"),
-  profitAndLoss: () => request<ProfitAndLoss>("/reports/profit-and-loss"),
-  budgetReport: () => request<BudgetReport>("/reports/budget-report"),
+  balanceSheet: (fromDate = "", toDate = "") => request<BalanceSheet>(`/reports/balance-sheet${reportQuery(fromDate, toDate)}`),
+  profitAndLoss: (fromDate = "", toDate = "") => request<ProfitAndLoss>(`/reports/profit-and-loss${reportQuery(fromDate, toDate)}`),
+  budgetReport: (fromDate = "", toDate = "") => request<BudgetReport>(`/reports/budget-report${reportQuery(fromDate, toDate)}`),
 };
+
+function reportQuery(fromDate: string, toDate: string): string {
+  const params = new URLSearchParams();
+  if (fromDate) params.set("from_date", fromDate);
+  if (toDate) params.set("to_date", toDate);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}

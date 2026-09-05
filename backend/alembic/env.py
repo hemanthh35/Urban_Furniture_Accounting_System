@@ -22,6 +22,7 @@ import journals.models  # noqa: F401
 import purchases.models  # noqa: F401
 import sales.models  # noqa: F401
 import payments.models  # noqa: F401
+import stock.models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

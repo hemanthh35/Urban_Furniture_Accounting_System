@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, ForeignKey
 from core.database import Base
 
 ANALYTIC_ACCOUNT_TYPES = ("Income", "Expenses")
@@ -14,6 +14,7 @@ class AnalyticAccount(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     type = Column(String(20), nullable=False)  # Income | Expenses
+    is_archived = Column(Boolean, nullable=False, default=False)
 
 
 class Budget(Base):
@@ -31,3 +32,4 @@ class Budget(Base):
     responsible_person = Column(String(255), nullable=True)
     planned_amount_cents = Column(Integer, nullable=False)
     analytic_account_id = Column(Integer, ForeignKey("analytic_accounts.id"), nullable=False)
+    is_archived = Column(Boolean, nullable=False, default=False)

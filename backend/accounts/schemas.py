@@ -6,6 +6,10 @@ class AccountCreate(BaseModel):
     type: str  # Asset | Liability | Expense | Income | Capital
 
 
+class AccountUpdate(AccountCreate):
+    pass
+
+
 class AccountOut(BaseModel):
     id: int
     name: str

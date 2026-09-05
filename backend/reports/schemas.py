@@ -28,6 +28,7 @@ class BudgetReportRow(BaseModel):
     period: str
     analytic_account_name: str
     planned_amount_cents: int
+    actual_amount_cents: int
 
 
 class BudgetReport(BaseModel):

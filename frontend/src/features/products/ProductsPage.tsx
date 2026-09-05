@@ -8,6 +8,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -30,19 +31,46 @@ export default function ProductsPage() {
     load();
   }, []);
 
+  function openNew() {
+    setEditingProduct(null);
+    setName("");
+    setType("Goods");
+    setSalesPrice("");
+    setCost("");
+    setCategory("");
+    setFormError(null);
+    setModalOpen(true);
+  }
+
+  function openEdit(product: Product) {
+    setEditingProduct(product);
+    setName(product.name);
+    setType(product.type);
+    setSalesPrice(String(product.sales_price_cents / 100));
+    setCost(String(product.cost_cents / 100));
+    setCategory(product.category ?? "");
+    setFormError(null);
+    setModalOpen(true);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
     setSaving(true);
     try {
       // Rupees typed by the user -> paise stored in the backend.
-      await productsApi.create({
+      const payload = {
         name,
         type,
         sales_price_cents: Math.round(parseFloat(salesPrice) * 100),
         cost_cents: Math.round(parseFloat(cost) * 100),
         category: category || null,
-      });
+      };
+      if (editingProduct) {
+        await productsApi.update(editingProduct.id, payload);
+      } else {
+        await productsApi.create(payload);
+      }
       setModalOpen(false);
       setName("");
       setSalesPrice("");
@@ -50,9 +78,19 @@ export default function ProductsPage() {
       setCategory("");
       await load();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not create product");
+      setFormError(err instanceof ApiError ? err.message : "Could not save product");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleArchive(product: Product) {
+    if (!window.confirm(`Archive ${product.name}?`)) return;
+    try {
+      await productsApi.archive(product.id);
+      await load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not archive product");
     }
   }
 
@@ -60,7 +98,7 @@ export default function ProductsPage() {
     <div>
       <div className="page-head">
         <h1>Products</h1>
-        <button onClick={() => setModalOpen(true)}>+ New Product</button>
+        <button onClick={openNew}>+ New Product</button>
       </div>
 
       {loading ? (
@@ -77,6 +115,7 @@ export default function ProductsPage() {
                 <th>Category</th>
                 <th>Sales Price</th>
                 <th>Cost</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -87,6 +126,10 @@ export default function ProductsPage() {
                   <td className="muted">{p.category ?? "-"}</td>
                   <td className="mono">{formatMoney(p.sales_price_cents)}</td>
                   <td className="mono">{formatMoney(p.cost_cents)}</td>
+                  <td>
+                    <button className="secondary" onClick={() => openEdit(p)}>Edit</button>{" "}
+                    <button className="secondary" onClick={() => handleArchive(p)}>Archive</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -95,7 +138,7 @@ export default function ProductsPage() {
       )}
 
       {modalOpen && (
-        <Modal title="New Product" onClose={() => setModalOpen(false)}>
+        <Modal title={editingProduct ? "Edit Product" : "New Product"} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSubmit}>
             <label>
               Product Name
@@ -127,7 +170,7 @@ export default function ProductsPage() {
                 Cancel
               </button>
               <button type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Create"}
+                {saving ? "Saving..." : editingProduct ? "Save" : "Create"}
               </button>
             </div>
           </form>

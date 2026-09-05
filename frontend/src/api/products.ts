@@ -17,7 +17,11 @@ export interface ProductCreate {
   category?: string | null;
 }
 
+export type ProductUpdate = ProductCreate;
+
 export const productsApi = {
   list: () => request<Product[]>("/products"),
   create: (payload: ProductCreate) => request<Product>("/products", { method: "POST", body: payload }),
+  update: (id: number, payload: ProductUpdate) => request<Product>(`/products/${id}`, { method: "PUT", body: payload }),
+  archive: (id: number) => request<void>(`/products/${id}/archive`, { method: "POST" }),
 };

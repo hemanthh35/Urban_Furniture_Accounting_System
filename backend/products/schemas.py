@@ -9,6 +9,10 @@ class ProductCreate(BaseModel):
     category: str | None = None
 
 
+class ProductUpdate(ProductCreate):
+    pass
+
+
 class ProductOut(BaseModel):
     id: int
     name: str

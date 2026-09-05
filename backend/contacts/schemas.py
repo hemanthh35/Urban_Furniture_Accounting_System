@@ -16,6 +16,17 @@ class ContactCreate(BaseModel):
     create_login_password: str | None = None
 
 
+class ContactUpdate(BaseModel):
+    name: str
+    type: str
+    email: str | None = None
+    mobile: str | None = None
+    city: str | None = None
+    state: str | None = None
+    pincode: str | None = None
+    profile_image: str | None = None
+
+
 class ContactOut(BaseModel):
     id: int
     name: str

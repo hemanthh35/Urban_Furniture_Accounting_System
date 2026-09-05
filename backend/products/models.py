@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String
 from core.database import Base
 
 # What Urban Furniture buys/sells - a chair, a sofa, or a service like "assembly".
@@ -18,3 +18,4 @@ class Product(Base):
     sales_price_cents = Column(Integer, nullable=False)  # what we charge a customer
     cost_cents = Column(Integer, nullable=False)  # what it costs us to buy/produce
     category = Column(String(100), nullable=True)
+    is_archived = Column(Boolean, nullable=False, default=False)

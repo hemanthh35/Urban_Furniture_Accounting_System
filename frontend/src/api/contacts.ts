@@ -23,7 +23,11 @@ export interface ContactCreate {
   create_login_password?: string | null; // spec: contact users are created alongside Contact master data
 }
 
+export type ContactUpdate = Omit<ContactCreate, "create_login_password">;
+
 export const contactsApi = {
   list: () => request<Contact[]>("/contacts"),
   create: (payload: ContactCreate) => request<Contact>("/contacts", { method: "POST", body: payload }),
+  update: (id: number, payload: ContactUpdate) => request<Contact>(`/contacts/${id}`, { method: "PUT", body: payload }),
+  archive: (id: number) => request<void>(`/contacts/${id}/archive`, { method: "POST" }),
 };

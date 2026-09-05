@@ -14,15 +14,31 @@ from sales.models import SalesOrder
 from sales.service import get_customer_invoice
 
 
+def _validate_payment(db: Session, method: str, amount_cents: int, bill_id: int | None = None, invoice_id: int | None = None) -> int:
+    if method not in ("Cash", "Bank"):
+        raise AppError("INVALID_PAYMENT_METHOD", "Payment method must be Cash or Bank", 400)
+    if amount_cents <= 0:
+        raise AppError("INVALID_PAYMENT_AMOUNT", "Payment amount must be greater than zero", 400)
+
+    if bill_id is not None:
+        payments = db.query(Payment).filter(Payment.vendor_bill_id == bill_id).all()
+    else:
+        payments = db.query(Payment).filter(Payment.customer_invoice_id == invoice_id).all()
+    return sum(payment.amount_cents for payment in payments)
+
+
 def pay_vendor_bill(db: Session, bill_id: int, method: str, amount_cents: int, pay_date: date) -> Payment:
     bill = get_vendor_bill(db, bill_id)
     if bill.status == "paid":
         raise AppError("ALREADY_PAID", f"Vendor bill {bill_id} is already paid", 409)
+    paid_amount = _validate_payment(db, method, amount_cents, bill_id=bill.id)
+    if paid_amount + amount_cents > bill.amount_cents:
+        raise AppError("PAYMENT_TOO_HIGH", "Payment is greater than the bill balance", 400)
 
     entry = post_vendor_payment(db, pay_date, f"BILL-{bill.id}", amount_cents, method)
 
     payment = Payment(vendor_bill_id=bill.id, method=method, amount_cents=amount_cents, date=pay_date, journal_entry_id=entry.id)
-    bill.status = "paid"
+    bill.status = "paid" if paid_amount + amount_cents == bill.amount_cents else "partial"
     db.add(payment)
     db.commit()
     db.refresh(payment)
@@ -41,11 +57,14 @@ def pay_customer_invoice(db: Session, invoice_id: int, method: str, amount_cents
 
     if invoice.status == "paid":
         raise AppError("ALREADY_PAID", f"Customer invoice {invoice_id} is already paid", 409)
+    paid_amount = _validate_payment(db, method, amount_cents, invoice_id=invoice.id)
+    if paid_amount + amount_cents > invoice.amount_cents:
+        raise AppError("PAYMENT_TOO_HIGH", "Payment is greater than the invoice balance", 400)
 
     entry = post_customer_payment(db, pay_date, f"INV-{invoice.id}", amount_cents, method)
 
     payment = Payment(customer_invoice_id=invoice.id, method=method, amount_cents=amount_cents, date=pay_date, journal_entry_id=entry.id)
-    invoice.status = "paid"
+    invoice.status = "paid" if paid_amount + amount_cents == invoice.amount_cents else "partial"
     db.add(payment)
     db.commit()
     db.refresh(payment)
