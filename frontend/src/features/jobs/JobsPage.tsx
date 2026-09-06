@@ -3,11 +3,26 @@ import DatePicker from "../../components/DatePicker";
 import { jobsApi, type JobStatus } from "../../api/jobs";
 import { requestBlob, ApiError } from "../../api/client";
 
-// Both jobs here run on a separate worker process (see backend/worker.py), not
-// inside this request - so we start them, then poll for the result instead of
-// waiting on one long HTTP call. Proves the background-job pipeline is real,
-// not just a spinner: kill the API mid-check and the job still finishes.
 type JobKind = "ledger-check" | "bulk-export" | "payment-reminders";
+const NGINX_URL = "http://localhost:8020/health";
+
+function isRunning(status: JobStatus | null) {
+  return status?.status === "queued" || status?.status === "started";
+}
+
+function statusText(status: JobStatus | null) {
+  if (!status) return "Ready to run";
+  if (status.status === "queued") return "Waiting in queue";
+  if (status.status === "started") return "Worker is running";
+  if (status.status === "finished") return "Completed successfully";
+  return "Job failed";
+}
+
+function statusClass(status: JobStatus | null) {
+  if (!status || status.status === "queued" || status.status === "started") return "job-status job-status-neutral";
+  if (status.status === "finished") return "job-status job-status-success";
+  return "job-status job-status-danger";
+}
 
 export default function JobsPage() {
   const [ledgerJobId, setLedgerJobId] = useState<string | null>(null);
@@ -20,6 +35,8 @@ export default function JobsPage() {
   const [error, setError] = useState<string | null>(null);
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
+  const [lbHits, setLbHits] = useState<string[]>([]);
+  const [lbPinging, setLbPinging] = useState(false);
 
   async function poll(jobId: string, kind: JobKind) {
     for (let i = 0; i < 40; i++) {
@@ -69,15 +86,32 @@ export default function JobsPage() {
     }
   }
 
+  async function pingLoadBalancer() {
+    setError(null);
+    setLbPinging(true);
+    setLbHits([]);
+    try {
+      for (let i = 0; i < 6; i++) {
+        const res = await fetch(NGINX_URL, { cache: "no-store" });
+        const upstream = res.headers.get("x-upstream-addr") ?? "Check DevTools response headers";
+        setLbHits((previous) => [...previous, upstream]);
+      }
+    } catch {
+      setError("Could not reach nginx on :8020. Start it with docker compose up -d in backend/.");
+    } finally {
+      setLbPinging(false);
+    }
+  }
+
   async function downloadExport() {
     if (!exportJobId) return;
     try {
       const { blob, filename } = await requestBlob(`/jobs/${exportJobId}/download`);
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename ?? "invoices.zip";
-      a.click();
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename ?? "invoices.zip";
+      anchor.click();
       URL.revokeObjectURL(url);
       setDownloadedFilename(filename ?? "invoices.zip");
     } catch (err) {
@@ -85,76 +119,92 @@ export default function JobsPage() {
     }
   }
 
-  const ledgerResult = ledgerStatus?.result as { total_entries_checked: number; balanced: boolean; total_debit_cents: number; total_credit_cents: number } | null;
+  const ledgerResult = ledgerStatus?.result as { total_entries_checked: number; balanced: boolean } | null;
   const reminderResult = reminderStatus?.result as { overdue_invoices_found: number; reminders_sent: number; skipped_no_email: number } | null;
 
   return (
-    <div>
-      <div className="page-head">
-        <h1>System Jobs</h1>
-        <p className="page-sub">Background work that runs on a separate worker process, so a slow check never blocks the app.</p>
+    <div className="jobs-page">
+      <div className="jobs-hero">
+        <div>
+          <h1>System Jobs</h1>
+          <p>Run background tasks without slowing down the accounting system.</p>
+        </div>
       </div>
 
       {error && <div className="form-error">{error}</div>}
 
-      <div className="stat-grid" style={{ marginBottom: 28 }}>
-        <div className="stat-tile">
-          <div className="stat-tile-label">Ledger Integrity Check</div>
-          <p className="muted" style={{ marginTop: 8 }}>Re-adds every debit and credit ever posted and confirms they still match.</p>
-          <button onClick={runLedgerCheck} disabled={ledgerStatus?.status === "queued" || ledgerStatus?.status === "started"} style={{ marginTop: 12 }}>
-            {ledgerStatus?.status === "queued" || ledgerStatus?.status === "started" ? "Running..." : "Run Check"}
+      <div className="jobs-grid">
+        <article className="job-card">
+          <h2>Ledger Integrity Check</h2>
+          <p className="job-description">Checks that total debits and credits match for every posted journal entry.</p>
+          <div className={statusClass(ledgerStatus)}><span className="job-status-dot" />{statusText(ledgerStatus)}</div>
+          <button className="job-action" onClick={runLedgerCheck} disabled={isRunning(ledgerStatus)}>
+            {isRunning(ledgerStatus) ? "Running check..." : "Run Check"}
           </button>
-          {ledgerJobId && <p className="muted" style={{ marginTop: 8 }}>Job: {ledgerJobId}</p>}
+          {ledgerJobId && <p className="job-id">Job ID <code>{ledgerJobId}</code></p>}
           {ledgerStatus?.status === "finished" && ledgerResult && (
-            <p style={{ marginTop: 8 }}>
+            <div className="job-result">
               <span className={ledgerResult.balanced ? "status-pill status-done" : "status-pill status-pending"}>
-                {ledgerResult.balanced ? "BALANCED" : "OUT OF BALANCE"}
+                {ledgerResult.balanced ? "Balanced" : "Out of balance"}
               </span>
-              <br />
-              {ledgerResult.total_entries_checked} entries checked
-            </p>
+              <span>{ledgerResult.total_entries_checked} entries checked</span>
+            </div>
           )}
-          {ledgerStatus?.status === "failed" && <p className="form-error">Check failed - is the worker (python worker.py) running?</p>}
-        </div>
+          {ledgerStatus?.status === "failed" && <p className="job-error">Check failed. Is `python worker.py` running?</p>}
+        </article>
 
-        <div className="stat-tile">
-          <div className="stat-tile-label">Bulk Invoice PDF Export</div>
-          <p className="muted" style={{ marginTop: 8 }}>Generates a PDF for every customer invoice and zips them into one download.</p>
-          <div className="date-range-export" style={{ marginTop: 12 }}>
-            <DatePicker value={exportFrom} onChange={setExportFrom} title="From invoice date" placeholder="From" />
-            <span className="muted">to</span>
-            <DatePicker value={exportTo} onChange={setExportTo} title="To invoice date" placeholder="To" />
+        <article className="job-card">
+          <h2>Bulk Invoice PDF Export</h2>
+          <p className="job-description">Creates a PDF for each customer invoice and puts them into one ZIP file.</p>
+          <div className="job-date-fields">
+            <DatePicker value={exportFrom} onChange={setExportFrom} title="From invoice date" placeholder="From date" />
+            <span>to</span>
+            <DatePicker value={exportTo} onChange={setExportTo} title="To invoice date" placeholder="To date" />
           </div>
-          <p className="field-hint" style={{ margin: "6px 0 0" }}>Leave both blank to export every invoice.</p>
-          <button onClick={runBulkExport} disabled={exportStatus?.status === "queued" || exportStatus?.status === "started"} style={{ marginTop: 8 }}>
-            {exportStatus?.status === "queued" || exportStatus?.status === "started" ? "Running..." : "Run Export"}
+          <p className="job-helper">Leave both dates blank to export every invoice.</p>
+          <div className={statusClass(exportStatus)}><span className="job-status-dot" />{statusText(exportStatus)}</div>
+          <button className="job-action" onClick={runBulkExport} disabled={isRunning(exportStatus)}>
+            {isRunning(exportStatus) ? "Creating ZIP..." : "Run Export"}
           </button>
-          {exportJobId && <p className="muted" style={{ marginTop: 8 }}>Job: {exportJobId}</p>}
+          {exportJobId && <p className="job-id">Job ID <code>{exportJobId}</code></p>}
           {exportStatus?.status === "finished" && (
-            <p style={{ marginTop: 8 }}>
+            <div className="job-result job-result-column">
               <button className="link-btn" onClick={downloadExport}>Download ZIP</button>
-              {downloadedFilename && <><br /><span className="muted">Saved as {downloadedFilename}</span></>}
-            </p>
+              {downloadedFilename && <span>{downloadedFilename}</span>}
+            </div>
           )}
-          {exportStatus?.status === "failed" && <p className="form-error">Export failed - is the worker (python worker.py) running?</p>}
-        </div>
+          {exportStatus?.status === "failed" && <p className="job-error">Export failed. Is `python worker.py` running?</p>}
+        </article>
 
-        <div className="stat-tile">
-          <div className="stat-tile-label">Payment Reminders</div>
-          <p className="muted" style={{ marginTop: 8 }}>Emails every customer with an unpaid invoice past its due date. Also runs automatically once a day (see backend/scheduler.py).</p>
-          <button onClick={runPaymentReminders} disabled={reminderStatus?.status === "queued" || reminderStatus?.status === "started"} style={{ marginTop: 12 }}>
-            {reminderStatus?.status === "queued" || reminderStatus?.status === "started" ? "Running..." : "Run Now"}
+        <article className="job-card">
+          <h2>Payment Reminders</h2>
+          <p className="job-description">Finds unpaid invoices past their due date and emails the customer.</p>
+          <div className="job-note"><strong>Automatic schedule</strong><span>Runs once every 24 hours.</span></div>
+          <div className={statusClass(reminderStatus)}><span className="job-status-dot" />{statusText(reminderStatus)}</div>
+          <button className="job-action" onClick={runPaymentReminders} disabled={isRunning(reminderStatus)}>
+            {isRunning(reminderStatus) ? "Sending reminders..." : "Run Now"}
           </button>
-          {reminderJobId && <p className="muted" style={{ marginTop: 8 }}>Job: {reminderJobId}</p>}
+          {reminderJobId && <p className="job-id">Job ID <code>{reminderJobId}</code></p>}
           {reminderStatus?.status === "finished" && reminderResult && (
-            <p style={{ marginTop: 8 }}>
-              {reminderResult.reminders_sent} reminder{reminderResult.reminders_sent === 1 ? "" : "s"} sent
-              <br />
-              <span className="muted">{reminderResult.overdue_invoices_found} overdue invoice(s) found, {reminderResult.skipped_no_email} skipped (no email on file)</span>
-            </p>
+            <div className="job-result job-result-column">
+              <span><strong>{reminderResult.reminders_sent}</strong> reminder{reminderResult.reminders_sent === 1 ? "" : "s"} sent</span>
+              <span>{reminderResult.overdue_invoices_found} overdue found · {reminderResult.skipped_no_email} skipped</span>
+            </div>
           )}
-          {reminderStatus?.status === "failed" && <p className="form-error">Run failed - is the worker (python worker.py) running?</p>}
-        </div>
+          {reminderStatus?.status === "failed" && <p className="job-error">Run failed. Is `python worker.py` running?</p>}
+        </article>
+
+        <article className="job-card">
+          <h2>Load Balancer Check</h2>
+          <p className="job-description">Sends six requests through Nginx to check both backend servers.</p>
+          <div className="job-note"><strong>Expected result</strong><span>The responses should alternate between ports 8000 and 8001.</span></div>
+          <div className="job-status job-status-neutral"><span className="job-status-dot" />Ready to test</div>
+          <button className="job-action" onClick={pingLoadBalancer} disabled={lbPinging}>
+            {lbPinging ? "Pinging Nginx..." : "Ping Nginx ×6"}
+          </button>
+          {lbHits.length > 0 && <div className="lb-results">{lbHits.map((hit, index) => <div key={index}><span>{index + 1}</span><code>{hit}</code></div>)}</div>}
+          <p className="job-helper">Requires the Nginx container and both API servers to be running.</p>
+        </article>
       </div>
     </div>
   );

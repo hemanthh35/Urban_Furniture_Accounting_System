@@ -3,6 +3,7 @@ import { contactsApi, type Contact } from "../../api/contacts";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
+import Select from "../../components/Select";
 import { usePagination } from "../../hooks/usePagination";
 import PasswordInput from "../../components/PasswordInput";
 import { downloadCsv } from "../../utils/export";
@@ -200,11 +201,7 @@ export default function ContactsPage() {
             </label>
             <label>
               Type
-              <select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="Customer">Customer</option>
-                <option value="Vendor">Vendor</option>
-                <option value="Both">Both</option>
-              </select>
+              <Select value={type} onChange={setType} options={[{ value: "Customer", label: "Customer" }, { value: "Vendor", label: "Vendor" }, { value: "Both", label: "Both" }]} />
             </label>
             <label>
               Email

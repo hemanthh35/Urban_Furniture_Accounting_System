@@ -4,6 +4,7 @@ AppError into a consistent JSON error shape instead of a raw 500 traceback."""
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from accounts.router import router as accounts_router
 from auth.router import router as auth_router
@@ -35,8 +36,9 @@ app.add_middleware(
     # Browsers hide every response header from JS on a cross-origin request
     # except a small default allowlist - Content-Disposition isn't in it, so
     # without this, the frontend can never read the filename we set on a PDF
-    # or ZIP download, even though the header genuinely was sent.
-    expose_headers=["Content-Disposition"],
+    # or ZIP download, even though the header genuinely was sent. Same story
+    # for X-Upstream-Addr, which nginx adds to prove its round-robin is real.
+    expose_headers=["Content-Disposition", "X-Upstream-Addr"],
 )
 
 
@@ -48,6 +50,11 @@ def handle_app_error(_request: Request, exc: AppError):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# Exposes request counts, latency histograms, and error rates at /metrics for
+# Prometheus to scrape - same instrumentation proven working in Coreline.
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 
 app.include_router(auth_router)

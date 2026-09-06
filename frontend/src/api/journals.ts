@@ -34,4 +34,6 @@ export const journalsApi = {
   archive: (id: number) => request<void>(`/journals/${id}/archive`, { method: "POST" }),
   restore: (id: number) => request<void>(`/journals/${id}/restore`, { method: "POST" }),
   listEntries: () => request<JournalEntry[]>("/journals/entries"),
+  createOpeningBalance: (payload: { date: string; cash_cents: number; bank_cents: number }) =>
+    request<JournalEntry>("/journals/opening-balance", { method: "POST", body: payload }),
 };

@@ -16,12 +16,25 @@ On a real Linux deployment, swap back to Worker + the default death penalty
 for per-job process isolation.
 """
 
+import time
+
+from redis.exceptions import ConnectionError as RedisConnectionError
 from rq import SimpleWorker
 from rq.timeouts import TimerDeathPenalty
 
 from jobs.queue import _connection, jobs_queue
 
 if __name__ == "__main__":
-    worker = SimpleWorker([jobs_queue], connection=_connection)
-    worker.death_penalty_class = TimerDeathPenalty
-    worker.work()
+    # A dropped Redis connection (idle overnight, a Docker restart, a network
+    # blip) makes RQ give up and exit rather than reconnect on its own - so this
+    # keeps making a fresh Worker and re-entering work() instead of the process
+    # just dying silently and leaving every future job stuck "queued" forever.
+    while True:
+        try:
+            worker = SimpleWorker([jobs_queue], connection=_connection)
+            worker.death_penalty_class = TimerDeathPenalty
+            worker.work()
+            break  # work() only returns normally on a clean shutdown
+        except RedisConnectionError:
+            print("Lost the Redis connection - reconnecting in 3s...")
+            time.sleep(3)

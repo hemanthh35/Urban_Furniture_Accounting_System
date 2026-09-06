@@ -10,6 +10,7 @@ import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
 import DateRangeExport from "../../components/DateRangeExport";
 import DatePicker from "../../components/DatePicker";
+import Select from "../../components/Select";
 import { usePagination } from "../../hooks/usePagination";
 
 type DraftItem = { product_id: string; quantity: string; unit_price_cents: string; tax_percent: string };
@@ -223,16 +224,7 @@ export default function SalesOrdersPage() {
           <form onSubmit={handleSubmit}>
             <label>
               Customer
-              <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} required>
-                <option value="" disabled>
-                  Select a customer
-                </option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <Select value={customerId} onChange={setCustomerId} required placeholder="Select a customer" options={customers.map((c) => ({ value: String(c.id), label: c.name }))} />
             </label>
             <label>
               Order Date
@@ -240,10 +232,12 @@ export default function SalesOrdersPage() {
             </label>
             <label>
               Budget / Analytic Account
-              <select value={analyticAccountId} onChange={(e) => setAnalyticAccountId(e.target.value)}>
-                <option value="">None</option>
-                {analyticAccounts.filter((account) => account.type === "Income").map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-              </select>
+              <Select
+                value={analyticAccountId}
+                onChange={setAnalyticAccountId}
+                placeholder="None"
+                options={analyticAccounts.filter((account) => account.type === "Income").map((account) => ({ value: String(account.id), label: account.name }))}
+              />
             </label>
 
             <div className="item-rows-label">Line items</div>
@@ -254,26 +248,18 @@ export default function SalesOrdersPage() {
               return (
                 <div key={i}>
                   <div className="item-row sales-item-row">
-                    <select
+                    <Select
                       value={item.product_id}
-                      onChange={(e) => {
-                        const productId = e.target.value;
+                      onChange={(productId) => {
                         // Auto-fill the tax % from the product's own GST rate - still
                         // a normal editable field afterward, this just saves retyping it.
                         const gstPercent = products.find((p) => String(p.id) === productId)?.gst_percent;
                         setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, product_id: productId, tax_percent: gstPercent !== undefined ? String(gstPercent) : it.tax_percent } : it)));
                       }}
                       required
-                    >
-                      <option value="" disabled>
-                        Product
-                      </option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Product"
+                      options={products.map((p) => ({ value: String(p.id), label: p.name }))}
+                    />
                     <input type="number" min="1" placeholder="Qty" value={item.quantity} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, quantity: e.target.value } : it)))} required />
                     <input type="number" step="0.01" placeholder="Unit Price ₹" value={item.unit_price_cents} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, unit_price_cents: e.target.value } : it)))} required />
                     <input type="number" min="0" max="100" placeholder="Tax %" value={item.tax_percent} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, tax_percent: e.target.value } : it)))} />

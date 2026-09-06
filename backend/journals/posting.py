@@ -106,3 +106,20 @@ def post_vendor_payment(db: Session, payment_date: date, reference: str, amount_
     them (Creditors debited down) and reduces our Cash/Bank balance."""
     journal_type = "Cash" if method == "Cash" else "Bank"
     return _post(db, journal_type, payment_date, reference, "Creditors", method, amount_cents)
+
+
+def post_opening_balance(db: Session, entry_date: date, cash_cents: int = 0, bank_cents: int = 0) -> JournalEntry:
+    """One-time entry for whatever was already in Cash/Bank before this system
+    started tracking anything - Debit Cash/Bank, Credit Capital (the owner's own
+    stake that funded that starting balance). Without this, a fresh set of books
+    starts every account at exactly 0, so any real activity that happened before
+    the first logged transaction shows up as a false negative balance instead."""
+    lines = []
+    if cash_cents:
+        lines.append(("Cash", cash_cents, 0))
+    if bank_cents:
+        lines.append(("Bank", bank_cents, 0))
+    if not lines:
+        raise AppError("EMPTY_OPENING_BALANCE", "Enter a Cash and/or Bank opening balance greater than zero", 400)
+    lines.append(("Capital", 0, cash_cents + bank_cents))
+    return _post_lines(db, "Opening Balance", entry_date, "Opening Balance", lines)

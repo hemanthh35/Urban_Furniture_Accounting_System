@@ -4,6 +4,7 @@ import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
 import DatePicker from "../../components/DatePicker";
+import Select from "../../components/Select";
 import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
 
@@ -193,16 +194,13 @@ export default function BudgetsPage() {
             </label>
             <label>
               Analytic Account
-              <select value={analyticAccountId} onChange={(e) => setAnalyticAccountId(e.target.value)} required>
-                <option value="" disabled>
-                  Select
-                </option>
-                {analyticAccounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} ({a.type})
-                  </option>
-                ))}
-              </select>
+              <Select
+                value={analyticAccountId}
+                onChange={setAnalyticAccountId}
+                required
+                placeholder="Select"
+                options={analyticAccounts.map((a) => ({ value: String(a.id), label: `${a.name} (${a.type})` }))}
+              />
             </label>
             {formError && <div className="form-error">{formError}</div>}
             <div className="modal-actions">

@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { importsApi, type ImportResult } from "../../api/imports";
 import { ApiError } from "../../api/client";
 import { downloadCsv } from "../../utils/export";
+import Select from "../../components/Select";
 
 type Entity = "contacts" | "products";
 
@@ -83,10 +84,7 @@ export default function BulkImportPage() {
       <div className="form-card" style={{ maxWidth: 640 }}>
         <label>
           What are you importing?
-          <select value={entity} onChange={(e) => pickEntity(e.target.value as Entity)}>
-            <option value="contacts">Contacts</option>
-            <option value="products">Products</option>
-          </select>
+          <Select value={entity} onChange={(v) => pickEntity(v as Entity)} options={[{ value: "contacts", label: "Contacts" }, { value: "products", label: "Products" }]} />
         </label>
 
         <div className="item-rows-label">Expected columns (first row of your CSV must be exactly these headers)</div>

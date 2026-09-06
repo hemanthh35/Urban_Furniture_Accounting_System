@@ -126,6 +126,26 @@ label { display: flex; flex-direction: column; gap: .42em; color: var(--ink-soft
 .datepicker-day.selected { background: var(--fill); color: var(--fill-ink); }
 .datepicker-day.selected:hover { background: var(--fill-hover); color: var(--fill-ink); }
 .datepicker-footer { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+
+/* custom dropdown - replaces the native <select> everywhere, since a native
+   <option> list can't be restyled to match the rest of the app at all. */
+.uf-select { position: relative; width: 100%; }
+.uf-select-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: .5em; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface); color: var(--ink); font: 500 .9rem "DM Sans", sans-serif; padding: .72em .8em; text-align: left; }
+.uf-select-trigger:hover { background: var(--surface-alt); color: var(--ink); box-shadow: none; transform: none; }
+.uf-select-trigger:focus-visible { border-color: var(--fill); box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }
+.uf-select-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uf-select-placeholder { color: var(--ink-faint); font-weight: 400; }
+.uf-select-chevron { flex-shrink: 0; color: var(--ink-faint); transition: transform .15s; }
+.uf-select-chevron.open { transform: rotate(180deg); }
+.uf-select-shadow { position: absolute; inset: 0; opacity: 0; pointer-events: none; height: 100%; width: 100%; }
+
+.uf-select-popup { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; width: 100%; max-height: 260px; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 6px; }
+.uf-select-option { display: block; width: 100%; text-align: left; background: transparent; color: var(--ink); border: 0; border-radius: 7px; padding: .6em .7em; font: 500 .86rem "DM Sans", sans-serif; box-shadow: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uf-select-option:hover { background: var(--surface-alt); color: var(--ink); box-shadow: none; transform: none; }
+.uf-select-option.selected { background: var(--fill); color: var(--fill-ink); }
+.uf-select-option.selected:hover { background: var(--fill-hover); color: var(--fill-ink); }
+.uf-select-option:disabled { color: var(--ink-faint); cursor: not-allowed; }
+
 .page-sub { max-width: 65ch; color: var(--ink-soft); font-size: .86rem; margin: 7px 0 0; }
 .page-filters { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px; }
 .page-filters label { min-width: 145px; margin: 0; }
@@ -178,6 +198,38 @@ tbody tr:hover { background: #fbfcff; }
 .insight-dot-blue { background: #2563eb; }
 .insight-dot-orange { background: #d88b18; }
 .insight-dot-green { background: #12a889; }
+.jobs-page { max-width: 1160px; }
+.jobs-hero { display: block; margin-bottom: 28px; padding: 0 0 20px; border-bottom: 1px solid var(--line); }
+.jobs-hero h1 { font-size: 1.9rem; }
+.jobs-hero p { max-width: 640px; margin: 8px 0 0; color: var(--ink-soft); font-size: .92rem; }
+.eyebrow, .job-kicker, .jobs-hero-status, .online-dot { display: none; }
+.jobs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.job-card { display: flex; flex-direction: column; min-width: 0; min-height: 320px; padding: 23px 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.job-card h2 { margin-bottom: 8px; color: var(--ink); font-size: 1.08rem; letter-spacing: -.02em; }
+.job-description { min-height: 50px; margin: 0; color: var(--ink-soft); font-size: .86rem; line-height: 1.55; }
+.job-action { align-self: flex-start; margin-top: 17px; }
+.job-status { display: flex; align-items: center; gap: 8px; margin-top: 18px; color: var(--ink-soft); font-size: .78rem; font-weight: 700; }
+.job-status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.job-status-neutral { color: var(--ink-faint); }
+.job-status-success { color: #087d69; }
+.job-status-danger { color: var(--danger); }
+.job-id { overflow: hidden; margin: 9px 0 0; color: var(--ink-faint); font-size: .74rem; text-overflow: ellipsis; white-space: nowrap; }
+.job-id code { color: var(--ink-soft); font-family: "SFMono-Regular", Consolas, monospace; }
+.job-result { display: flex; align-items: center; gap: 9px; margin-top: 13px; color: var(--ink-soft); font-size: .78rem; }
+.job-result-column { align-items: flex-start; flex-direction: column; gap: 4px; }
+.job-result .link-btn { padding-left: 0; }
+.job-result strong { color: var(--ink); }
+.job-error { margin: 12px 0 0; color: var(--danger); font-size: .76rem; }
+.job-helper { margin: 7px 0 0; color: var(--ink-faint); font-size: .74rem; line-height: 1.45; }
+.job-date-fields { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 7px; margin-top: 18px; color: var(--ink-faint); font-size: .76rem; }
+.job-date-fields .datepicker { min-width: 0; }
+.job-date-fields .datepicker-text-input { font-size: .78rem; }
+.job-note { display: flex; flex-direction: column; gap: 2px; margin-top: 16px; padding: 10px 12px; border-left: 3px solid #c8dafa; border-radius: 0 8px 8px 0; color: var(--ink-soft); background: #f7faff; font-size: .76rem; line-height: 1.45; }
+.job-note strong { color: var(--ink); font-size: .74rem; }
+.lb-results { display: flex; flex-direction: column; gap: 5px; margin-top: 13px; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: 9px; background: var(--surface-alt); }
+.lb-results div { display: flex; align-items: center; gap: 9px; min-width: 0; color: var(--ink-faint); font-size: .7rem; }
+.lb-results div > span { display: grid; width: 17px; height: 17px; flex-shrink: 0; place-items: center; border-radius: 50%; color: var(--fill); background: #eaf2ff; font-size: .64rem; font-weight: 800; }
+.lb-results code { overflow: hidden; color: var(--ink-soft); font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
 
 /* modal */
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(23, 32, 51, .48); backdrop-filter: blur(5px); }
@@ -481,4 +533,13 @@ img { border-radius: 8px; object-fit: cover; }
   .dashboard-summary-head { align-items: flex-start; padding: 16px; }
   .dashboard-summary-head span { padding-top: 3px; text-align: right; }
   .insight-row { padding: 16px; }
+  .jobs-hero { margin-bottom: 20px; padding-bottom: 16px; }
+  .jobs-hero h1 { font-size: 1.55rem; }
+  .jobs-hero p { font-size: .82rem; }
+  .jobs-grid { grid-template-columns: 1fr; gap: 12px; }
+  .job-card { min-height: 0; padding: 20px 18px; }
+  .job-description { min-height: 0; }
+  .job-date-fields { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .job-date-fields > span { display: none; }
+  .job-date-fields .datepicker { width: 100%; }
 }

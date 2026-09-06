@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { authApi, type User } from "../../api/auth";
 import { ApiError } from "../../api/client";
 import Pagination from "../../components/Pagination";
+import Select from "../../components/Select";
 import { usePagination } from "../../hooks/usePagination";
 import PasswordInput from "../../components/PasswordInput";
 
@@ -47,7 +48,7 @@ export default function UsersPage() {
       <label>Login ID<input value={loginId} onChange={(e) => setLoginId(e.target.value)} minLength={6} maxLength={12} required /></label>
       <p className="field-hint">6-12 characters.</p>
       <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-      <label>Role<select value={role} onChange={(e) => setRole(e.target.value)}><option value="user">Accountant</option><option value="administrator">Administrator</option></select></label>
+      <label>Role<Select value={role} onChange={setRole} options={[{ value: "user", label: "Accountant" }, { value: "administrator", label: "Administrator" }]} /></label>
       <label>Password<PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required /></label>
       <p className="field-hint">At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.</p>
       <button type="submit">Create</button>

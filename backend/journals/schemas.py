@@ -35,3 +35,9 @@ class JournalEntryOut(BaseModel):
     date: date
     reference: str | None
     lines: list[JournalEntryLineOut]
+
+
+class OpeningBalanceCreate(BaseModel):
+    date: date
+    cash_cents: int = 0
+    bank_cents: int = 0

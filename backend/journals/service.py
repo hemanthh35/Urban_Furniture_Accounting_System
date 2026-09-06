@@ -1,8 +1,11 @@
+from datetime import date
+
 from sqlalchemy.orm import Session
 
 from accounts.models import Account
 from core.errors import AppError
 from journals.models import Journal, JournalEntry
+from journals.posting import post_opening_balance
 from journals.schemas import JournalCreate
 
 
@@ -67,6 +70,16 @@ def get_entry(db: Session, entry_id: int) -> dict:
     entry = db.query(JournalEntry).filter(JournalEntry.id == entry_id).first()
     if not entry:
         raise AppError("JOURNAL_ENTRY_NOT_FOUND", "That journal entry does not exist", 404)
+    return _entry_dict(db, entry)
+
+
+def create_opening_balance(db: Session, entry_date: date, cash_cents: int, bank_cents: int) -> dict:
+    if not db.query(Account).filter(Account.name == "Capital", Account.is_archived.is_(False)).first():
+        raise AppError("CAPITAL_ACCOUNT_MISSING", "Create a 'Capital' account (type Capital) in Chart of Accounts first", 400)
+    if db.query(JournalEntry).join(Journal).filter(Journal.type == "Opening Balance").first():
+        raise AppError("OPENING_BALANCE_ALREADY_SET", "An opening balance has already been recorded - this is meant to run once", 409)
+    entry = post_opening_balance(db, entry_date, cash_cents, bank_cents)
+    db.commit()
     return _entry_dict(db, entry)
 
 

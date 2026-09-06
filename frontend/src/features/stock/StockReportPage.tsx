@@ -5,6 +5,7 @@ import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
 import DatePicker from "../../components/DatePicker";
+import Select from "../../components/Select";
 import { usePagination } from "../../hooks/usePagination";
 
 export default function StockReportPage() {
@@ -95,7 +96,7 @@ export default function StockReportPage() {
       {modalOpen && (
         <Modal title="Stock Adjustment" onClose={() => setModalOpen(false)}>
           <form onSubmit={handleAdjustment}>
-            <label>Product<select value={productId} onChange={(e) => setProductId(e.target.value)} required><option value="" disabled>Select a product</option>{products.filter((p) => p.type !== "Service").map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+            <label>Product<Select value={productId} onChange={setProductId} required placeholder="Select a product" options={products.filter((p) => p.type !== "Service").map((p) => ({ value: String(p.id), label: p.name }))} /></label>
             <label>Quantity Change<input type="number" value={quantityDelta} onChange={(e) => setQuantityDelta(e.target.value)} placeholder="Use negative to remove" required /></label>
             <label>Date<DatePicker value={movementDate} onChange={setMovementDate} required /></label>
             <label>Reason<input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Opening stock, correction..." /></label>

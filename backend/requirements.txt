@@ -17,3 +17,4 @@ redis==5.2.1
 rq==2.1.0
 razorpay==1.4.2
 setuptools==75.6.0
+prometheus-fastapi-instrumentator==7.0.0

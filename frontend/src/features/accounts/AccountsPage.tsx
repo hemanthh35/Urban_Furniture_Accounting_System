@@ -3,6 +3,7 @@ import { accountsApi, type Account } from "../../api/accounts";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
+import Select from "../../components/Select";
 import { usePagination } from "../../hooks/usePagination";
 
 export default function AccountsPage() {
@@ -130,13 +131,17 @@ export default function AccountsPage() {
             </label>
             <label>
               Type
-              <select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="Asset">Asset</option>
-                <option value="Liability">Liability</option>
-                <option value="Expense">Expense</option>
-                <option value="Income">Income</option>
-                <option value="Capital">Capital</option>
-              </select>
+              <Select
+                value={type}
+                onChange={setType}
+                options={[
+                  { value: "Asset", label: "Asset" },
+                  { value: "Liability", label: "Liability" },
+                  { value: "Expense", label: "Expense" },
+                  { value: "Income", label: "Income" },
+                  { value: "Capital", label: "Capital" },
+                ]}
+              />
             </label>
             {formError && <div className="form-error">{formError}</div>}
             <div className="modal-actions">

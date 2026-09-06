@@ -3,6 +3,7 @@ import { productsApi, type Product } from "../../api/products";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
+import Select from "../../components/Select";
 import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
 import { downloadCsv } from "../../utils/export";
@@ -177,11 +178,7 @@ export default function ProductsPage() {
             </label>
             <label>
               Type
-              <select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="Goods">Goods</option>
-                <option value="Service">Service</option>
-                <option value="Combo">Combo</option>
-              </select>
+              <Select value={type} onChange={setType} options={[{ value: "Goods", label: "Goods" }, { value: "Service", label: "Service" }, { value: "Combo", label: "Combo" }]} />
             </label>
             <label>
               Sales Price (₹)

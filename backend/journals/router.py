@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.security import require_roles
 from journals import service
-from journals.schemas import JournalCreate, JournalEntryOut, JournalOut
+from journals.schemas import JournalCreate, JournalEntryOut, JournalOut, OpeningBalanceCreate
 
 router = APIRouter(prefix="/journals", tags=["journals"])
 
@@ -35,6 +35,11 @@ def archive_journal(journal_id: int, db: Session = Depends(get_db), _user=Depend
 @router.post("/{journal_id}/restore", status_code=204)
 def restore_journal(journal_id: int, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
     service.restore_journal(db, journal_id)
+
+
+@router.post("/opening-balance", response_model=JournalEntryOut)
+def create_opening_balance(payload: OpeningBalanceCreate, db: Session = Depends(get_db), _user=Depends(CAN_WRITE)):
+    return service.create_opening_balance(db, payload.date, payload.cash_cents, payload.bank_cents)
 
 
 @router.get("/entries", response_model=list[JournalEntryOut])

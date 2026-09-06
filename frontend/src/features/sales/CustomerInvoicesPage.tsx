@@ -9,6 +9,7 @@ import Modal from "../../components/Modal";
 import BillPreview from "../../components/BillPreview";
 import Pagination from "../../components/Pagination";
 import DateRangeExport from "../../components/DateRangeExport";
+import Select from "../../components/Select";
 import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
 import { useAuth } from "../auth/AuthContext";
@@ -242,10 +243,7 @@ export default function CustomerInvoicesPage() {
             </label>
             <label>
               Method
-              <select value={method} onChange={(e) => setMethod(e.target.value)}>
-                <option value="Cash">Cash</option>
-                <option value="Bank">Bank</option>
-              </select>
+              <Select value={method} onChange={setMethod} options={[{ value: "Cash", label: "Cash" }, { value: "Bank", label: "Bank" }]} />
             </label>
             {formError && <div className="form-error">{formError}</div>}
             <div className="modal-actions">

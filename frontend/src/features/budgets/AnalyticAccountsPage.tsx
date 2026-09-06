@@ -3,6 +3,7 @@ import { budgetsApi, type AnalyticAccount } from "../../api/budgets";
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
+import Select from "../../components/Select";
 import { usePagination } from "../../hooks/usePagination";
 
 export default function AnalyticAccountsPage() {
@@ -130,10 +131,7 @@ export default function AnalyticAccountsPage() {
             </label>
             <label>
               Type
-              <select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="Income">Income</option>
-                <option value="Expenses">Expenses</option>
-              </select>
+              <Select value={type} onChange={setType} options={[{ value: "Income", label: "Income" }, { value: "Expenses", label: "Expenses" }]} />
             </label>
             {formError && <div className="form-error">{formError}</div>}
             <div className="modal-actions">

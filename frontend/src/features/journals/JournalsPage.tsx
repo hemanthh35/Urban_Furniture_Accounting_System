@@ -4,8 +4,14 @@ import { journalsApi, type Journal, type JournalEntry } from "../../api/journals
 import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
+import DatePicker from "../../components/DatePicker";
+import Select from "../../components/Select";
 import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export default function JournalsPage() {
   const [journals, setJournals] = useState<Journal[]>([]);
@@ -20,6 +26,12 @@ export default function JournalsPage() {
   const [name, setName] = useState("");
   const [type, setType] = useState("Sales");
   const [defaultAccountId, setDefaultAccountId] = useState("");
+  const [obModalOpen, setObModalOpen] = useState(false);
+  const [obSaving, setObSaving] = useState(false);
+  const [obError, setObError] = useState<string | null>(null);
+  const [obDate, setObDate] = useState(todayIso());
+  const [obCash, setObCash] = useState("");
+  const [obBank, setObBank] = useState("");
 
   async function load() {
     setLoading(true);
@@ -83,6 +95,27 @@ export default function JournalsPage() {
     }
   }
 
+  async function handleOpeningBalanceSubmit(event: FormEvent) {
+    event.preventDefault();
+    setObSaving(true);
+    setObError(null);
+    try {
+      await journalsApi.createOpeningBalance({
+        date: obDate,
+        cash_cents: obCash ? Math.round(parseFloat(obCash) * 100) : 0,
+        bank_cents: obBank ? Math.round(parseFloat(obBank) * 100) : 0,
+      });
+      setObModalOpen(false);
+      setObCash("");
+      setObBank("");
+      await load();
+    } catch (err) {
+      setObError(err instanceof ApiError ? err.message : "Could not record opening balance");
+    } finally {
+      setObSaving(false);
+    }
+  }
+
   async function archiveJournal(journal: Journal) {
     if (!window.confirm(`Archive ${journal.name}?`)) return;
     try {
@@ -113,7 +146,11 @@ export default function JournalsPage() {
           <h1>Journals</h1>
           <p className="page-sub">View the journals and double-entry postings created by transactions.</p>
         </div>
-        <div><button className="secondary" onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Hide archived" : "Show archived"}</button>{" "}<button onClick={openNew}>+ New Journal</button></div>
+        <div>
+          <button className="secondary" onClick={() => { setObError(null); setObModalOpen(true); }}>Set Opening Balance</button>{" "}
+          <button className="secondary" onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Hide archived" : "Show archived"}</button>{" "}
+          <button onClick={openNew}>+ New Journal</button>
+        </div>
       </div>
 
       <div className="table-wrap" style={{ marginBottom: 24 }}>
@@ -167,24 +204,43 @@ export default function JournalsPage() {
             <label>Journal Name<input value={name} onChange={(e) => setName(e.target.value)} required /></label>
             <label>
               Type
-              <select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="Sales">Sales</option>
-                <option value="Purchase">Purchase</option>
-                <option value="Bank">Bank</option>
-                <option value="Cash">Cash</option>
-              </select>
+              <Select
+                value={type}
+                onChange={setType}
+                options={[
+                  { value: "Sales", label: "Sales" },
+                  { value: "Purchase", label: "Purchase" },
+                  { value: "Bank", label: "Bank" },
+                  { value: "Cash", label: "Cash" },
+                ]}
+              />
             </label>
             <label>
               Default Account
-              <select value={defaultAccountId} onChange={(e) => setDefaultAccountId(e.target.value)}>
-                <option value="">None</option>
-                {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-              </select>
+              <Select value={defaultAccountId} onChange={setDefaultAccountId} placeholder="None" options={accounts.map((account) => ({ value: String(account.id), label: account.name }))} />
             </label>
             {formError && <div className="form-error">{formError}</div>}
             <div className="modal-actions">
               <button type="button" className="secondary" onClick={() => setModalOpen(false)}>Cancel</button>
               <button type="submit" disabled={saving}>{saving ? "Saving..." : editingJournal ? "Save changes" : "Create"}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {obModalOpen && (
+        <Modal title="Set Opening Balance" onClose={() => setObModalOpen(false)}>
+          <form onSubmit={handleOpeningBalanceSubmit}>
+            <p className="field-hint" style={{ marginTop: 0 }}>
+              Records whatever was already in Cash/Bank before this system started tracking anything (Debit Cash/Bank, Credit Capital). One-time - it can't be recorded twice.
+            </p>
+            <label>Date<DatePicker value={obDate} onChange={setObDate} required /></label>
+            <label>Cash Opening Balance ₹<input type="number" step="0.01" min="0" placeholder="0.00" value={obCash} onChange={(e) => setObCash(e.target.value)} /></label>
+            <label>Bank Opening Balance ₹<input type="number" step="0.01" min="0" placeholder="0.00" value={obBank} onChange={(e) => setObBank(e.target.value)} /></label>
+            {obError && <div className="form-error">{obError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="secondary" onClick={() => setObModalOpen(false)}>Cancel</button>
+              <button type="submit" disabled={obSaving}>{obSaving ? "Saving..." : "Record Opening Balance"}</button>
             </div>
           </form>
         </Modal>
