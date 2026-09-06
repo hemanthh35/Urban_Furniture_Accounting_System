@@ -15,6 +15,7 @@ import PurchaseOrdersPage from "./features/purchases/PurchaseOrdersPage";
 import VendorBillsPage from "./features/purchases/VendorBillsPage";
 import SalesOrdersPage from "./features/sales/SalesOrdersPage";
 import CustomerInvoicesPage from "./features/sales/CustomerInvoicesPage";
+import PayInvoicePage from "./features/sales/PayInvoicePage";
 import BalanceSheetPage from "./features/reports/BalanceSheetPage";
 import ProfitAndLossPage from "./features/reports/ProfitAndLossPage";
 import BudgetReportPage from "./features/reports/BudgetReportPage";
@@ -43,6 +44,9 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          {/* The "Pay Now" link from an invoice/reminder email - no login, its
+              own signed token in the query string is the authorization. */}
+          <Route path="/pay/:invoiceId" element={<PayInvoicePage />} />
 
           {/* Contact-role users only ever see this one page - their own invoices. */}
           <Route

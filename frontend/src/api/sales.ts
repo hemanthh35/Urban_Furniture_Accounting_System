@@ -30,8 +30,12 @@ export interface CustomerInvoice {
   status: "unpaid" | "partial" | "paid";
 }
 
+export interface CustomerInvoiceLineDetail extends SalesOrderItem {
+  product_name: string;
+}
+
 export interface CustomerInvoiceDetail extends CustomerInvoice {
-  items: SalesOrderItem[];
+  items: CustomerInvoiceLineDetail[];
   payments: { id: number; method: string; amount_cents: number; date: string }[];
 }
 
@@ -69,4 +73,11 @@ export const salesApi = {
 
   checkout: (invoiceId: number) =>
     request<CheckoutResponse>(`/customer-invoices/${invoiceId}/checkout`, { method: "POST" }),
+
+  // No login needed - this is the "Pay Now" link from an invoice/reminder
+  // email, authorized by its own signed token instead of a session.
+  publicCheckout: (invoiceId: number, token: string) =>
+    request<CheckoutResponse>(`/public/customer-invoices/${invoiceId}/checkout?token=${encodeURIComponent(token)}`, { method: "POST" }),
+  publicInvoiceDetail: (invoiceId: number, token: string) =>
+    request<CustomerInvoiceDetail>(`/public/customer-invoices/${invoiceId}?token=${encodeURIComponent(token)}`),
 };

@@ -242,7 +242,15 @@ export default function SalesOrdersPage() {
 
             <div className="item-rows-label">Line items</div>
             {items.map((item, i) => {
-              const available = item.product_id ? stockOnHand[Number(item.product_id)] ?? 0 : null;
+              // Two lines can share the same product (e.g. different tax
+              // rates on a split order) - stock actually on hand has to be
+              // split between them too, or each line checks the full stock
+              // total on its own and both can look fine even when their
+              // combined quantity is more than what's really available.
+              const usedByOtherLines = items.reduce((sum, other, idx) => (
+                idx !== i && other.product_id === item.product_id ? sum + parseInt(other.quantity || "0", 10) : sum
+              ), 0);
+              const available = item.product_id ? Math.max((stockOnHand[Number(item.product_id)] ?? 0) - usedByOtherLines, 0) : null;
               const requested = parseInt(item.quantity || "0", 10);
               const short = available !== null && requested > available;
               return (
@@ -253,12 +261,23 @@ export default function SalesOrdersPage() {
                       onChange={(productId) => {
                         // Auto-fill the tax % from the product's own GST rate - still
                         // a normal editable field afterward, this just saves retyping it.
-                        const gstPercent = products.find((p) => String(p.id) === productId)?.gst_percent;
-                        setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, product_id: productId, tax_percent: gstPercent !== undefined ? String(gstPercent) : it.tax_percent } : it)));
+                        // Unit price defaults from the product's own Sales Price (its
+                        // master-data selling price - never the Purchase Order cost,
+                        // which is what we pay vendors, not what we charge customers).
+                        const product = products.find((p) => String(p.id) === productId);
+                        setItems((prev) => prev.map((it, idx) => (idx === i ? {
+                          ...it,
+                          product_id: productId,
+                          tax_percent: product?.gst_percent !== undefined ? String(product.gst_percent) : it.tax_percent,
+                          unit_price_cents: product ? String(product.sales_price_cents / 100) : it.unit_price_cents,
+                        } : it)));
                       }}
                       required
                       placeholder="Product"
-                      options={products.map((p) => ({ value: String(p.id), label: p.name }))}
+                      // A product already picked on another line can't be picked again -
+                      // two lines for the same product was exactly the case that made the
+                      // "how much is left" stock warning confusing above.
+                      options={products.filter((p) => !items.some((other, idx) => idx !== i && other.product_id === String(p.id))).map((p) => ({ value: String(p.id), label: p.name }))}
                     />
                     <input type="number" min="1" placeholder="Qty" value={item.quantity} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, quantity: e.target.value } : it)))} required />
                     <input type="number" step="0.01" placeholder="Unit Price ₹" value={item.unit_price_cents} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, unit_price_cents: e.target.value } : it)))} required />

@@ -73,6 +73,7 @@ class CustomerInvoiceDetailOut(CustomerInvoiceOut):
 class CustomerInvoiceLineOut(BaseModel):
     id: int
     product_id: int
+    product_name: str = ""
     quantity: int
     unit_price_cents: int
     tax_percent: int

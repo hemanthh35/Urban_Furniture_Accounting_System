@@ -14,12 +14,24 @@ export interface BalanceSheet {
   total_capital_cents: number;
 }
 
+export interface ProductProfitRow {
+  product_id: number;
+  product_name: string;
+  units_sold: number;
+  revenue_cents: number;
+  units_purchased: number;
+  purchase_spend_cents: number;
+  estimated_cost_of_goods_sold_cents: number;
+  estimated_gross_profit_cents: number;
+}
+
 export interface ProfitAndLoss {
   income: AccountBalance[];
   expenses: AccountBalance[];
   total_income_cents: number;
   total_expenses_cents: number;
   net_profit_cents: number;
+  by_product: ProductProfitRow[];
 }
 
 export interface BudgetReportRow {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import Popover from "./Popover";
 
 export interface SelectOption {
   value: string;
@@ -27,7 +28,11 @@ export default function Select({ value, onChange, options, placeholder, required
   useEffect(() => {
     if (!open) return;
     function onClickOutside(e: MouseEvent) {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Element;
+      // The popup itself lives in a portal at document.body (see Popover.tsx),
+      // so it's no longer a DOM descendant of boxRef - has to be checked
+      // separately, or every click inside the list would look "outside".
+      if (boxRef.current && !boxRef.current.contains(target) && !target.closest?.(".uf-select-popup")) setOpen(false);
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
@@ -59,26 +64,24 @@ export default function Select({ value, onChange, options, placeholder, required
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
 
-      {open && (
-        <div className="uf-select-popup">
-          {placeholder && (
-            <button type="button" className={`uf-select-option${value === "" ? " selected" : ""}`} onClick={() => pick("")}>
-              {placeholder}
-            </button>
-          )}
-          {options.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              className={`uf-select-option${o.value === value ? " selected" : ""}`}
-              disabled={o.disabled}
-              onClick={() => pick(o.value)}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <Popover anchorRef={boxRef} open={open} onClose={() => setOpen(false)} className="uf-select-popup" estimatedHeight={260}>
+        {placeholder && (
+          <button type="button" className={`uf-select-option${value === "" ? " selected" : ""}`} onClick={() => pick("")}>
+            {placeholder}
+          </button>
+        )}
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            className={`uf-select-option${o.value === value ? " selected" : ""}`}
+            disabled={o.disabled}
+            onClick={() => pick(o.value)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </Popover>
     </div>
   );
 }

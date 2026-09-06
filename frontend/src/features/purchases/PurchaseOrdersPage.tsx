@@ -243,14 +243,23 @@ export default function PurchaseOrdersPage() {
                 <Select
                   value={item.product_id}
                   onChange={(productId) => {
-                    // Auto-fill the tax % from the product's own GST rate - still
-                    // a normal editable field afterward, this just saves retyping it.
-                    const gstPercent = products.find((p) => String(p.id) === productId)?.gst_percent;
-                    setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, product_id: productId, tax_percent: gstPercent !== undefined ? String(gstPercent) : it.tax_percent } : it)));
+                    // Auto-fill unit price from the product's own Cost (what we pay
+                    // vendors - never Sales Price, which is what we charge customers)
+                    // and tax % from its GST rate - both stay normal editable fields
+                    // afterward, this just saves retyping the common case.
+                    const product = products.find((p) => String(p.id) === productId);
+                    setItems((prev) => prev.map((it, idx) => (idx === i ? {
+                      ...it,
+                      product_id: productId,
+                      tax_percent: product?.gst_percent !== undefined ? String(product.gst_percent) : it.tax_percent,
+                      unit_price_cents: product ? String(product.cost_cents / 100) : it.unit_price_cents,
+                    } : it)));
                   }}
                   required
                   placeholder="Product"
-                  options={products.map((p) => ({ value: String(p.id), label: p.name }))}
+                  // A product already picked on another line can't be picked again -
+                  // keeps each product to one line instead of splitting it across two.
+                  options={products.filter((p) => !items.some((other, idx) => idx !== i && other.product_id === String(p.id))).map((p) => ({ value: String(p.id), label: p.name }))}
                 />
                 <input type="number" min="1" placeholder="Qty" value={item.quantity} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, quantity: e.target.value } : it)))} required />
                 <input type="number" step="0.01" placeholder="Unit Price ₹" value={item.unit_price_cents} onChange={(e) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, unit_price_cents: e.target.value } : it)))} required />

@@ -11,8 +11,12 @@ from core.config import settings
 _TTL_SECONDS = 600  # 10 minutes - long enough to click, short enough to matter
 
 
-def sign_document_token(doc_type: str, doc_id: int) -> tuple[str, int]:
-    expires_at = int(time.time()) + _TTL_SECONDS
+def sign_document_token(doc_type: str, doc_id: int, ttl_seconds: int = _TTL_SECONDS) -> tuple[str, int]:
+    # A PDF link only needs to survive one click right after it's generated, so
+    # the default 10 minutes is plenty - but a "Pay Now" link in an email is
+    # meant to still work whenever the customer gets around to opening it,
+    # hours or days later, so callers like that pass a much longer ttl_seconds.
+    expires_at = int(time.time()) + ttl_seconds
     payload = f"{doc_type}:{doc_id}:{expires_at}"
     signature = hmac.new(settings.jwt_secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
     return f"{expires_at}.{signature}", expires_at

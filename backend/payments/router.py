@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.security import CurrentUser, require_roles
+from core.signing import verify_document_token
 from payments import service
 from payments.schemas import CheckoutResponse, CustomerPaymentCreate, PaymentOut, VendorPaymentCreate
 from purchases.service import get_purchase_order, get_vendor_bill
@@ -47,6 +48,16 @@ def pay_customer_invoice(invoice_id: int, payload: CustomerPaymentCreate, db: Se
 def create_invoice_checkout(invoice_id: int, db: Session = Depends(get_db), user: CurrentUser = Depends(CAN_PAY_CUSTOMER)):
     contact_id = user.contact_id if user.role == "contact" else None
     return service.create_invoice_checkout(db, invoice_id, contact_id)
+
+
+@router.post("/public/customer-invoices/{invoice_id}/checkout", response_model=CheckoutResponse)
+def create_public_invoice_checkout(invoice_id: int, token: str, db: Session = Depends(get_db)):
+    """The "Pay Now" link in invoice/reminder emails lands here - no login, same
+    signed-token trust model as the PDF download links. The token proves the
+    click came from that specific email, which is authorization enough."""
+    if not verify_document_token("customer-invoice", invoice_id, token):
+        raise HTTPException(status_code=403, detail="Invalid or expired payment link")
+    return service.create_invoice_checkout(db, invoice_id, contact_id=None)
 
 
 @router.post("/payments/webhook", status_code=200)

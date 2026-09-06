@@ -48,12 +48,21 @@ def _money(cents: int) -> str:
     return f"Rs. {cents / 100:,.2f}"
 
 
-def send_invoice_email(to_email: str, to_name: str, invoice_id: int, amount_cents: int, due_date: str | None, pdf_url: str, pdf_bytes: bytes | None = None) -> bool:
+def _pay_button(pay_url: str) -> str:
+    return f"""
+    <p style="margin: 20px 0;">
+        <a href="{pay_url}" style="background: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block;">Pay Now</a>
+    </p>
+    """
+
+
+def send_invoice_email(to_email: str, to_name: str, invoice_id: int, amount_cents: int, due_date: str | None, pdf_url: str, pay_url: str, pdf_bytes: bytes | None = None) -> bool:
     due_line = f"<p>Due by <strong>{due_date}</strong>.</p>" if due_date else ""
     html = f"""
     <p>Hi {to_name},</p>
     <p>Invoice <strong>#{invoice_id}</strong> for <strong>{_money(amount_cents)}</strong> has been generated for you.</p>
     {due_line}
+    {_pay_button(pay_url)}
     <p>The PDF is attached to this email. You can also <a href="{pdf_url}">view / download it online</a> (that link expires in 10 minutes for security - come back to your account to get a fresh one anytime).</p>
     <p>- Urban Furniture</p>
     """
@@ -70,12 +79,13 @@ def send_payment_received_email(to_email: str, to_name: str, invoice_id: int, am
     return send_email(to_email, to_name, f"Payment received - Invoice #{invoice_id}", html)
 
 
-def send_payment_reminder_email(to_email: str, to_name: str, invoice_id: int, outstanding_cents: int, due_date: str) -> bool:
+def send_payment_reminder_email(to_email: str, to_name: str, invoice_id: int, outstanding_cents: int, due_date: str, pay_url: str) -> bool:
     html = f"""
     <p>Hi {to_name},</p>
     <p>This is a reminder that invoice <strong>#{invoice_id}</strong> for <strong>{_money(outstanding_cents)}</strong>
     was due on <strong>{due_date}</strong> and is still unpaid.</p>
-    <p>Please log in to your account to pay it online, or contact us if you've already paid.</p>
+    {_pay_button(pay_url)}
+    <p>Or contact us if you've already paid.</p>
     <p>- Urban Furniture</p>
     """
     return send_email(to_email, to_name, f"Reminder: Invoice #{invoice_id} is overdue", html)

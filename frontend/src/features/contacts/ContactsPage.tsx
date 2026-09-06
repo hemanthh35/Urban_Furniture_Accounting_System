@@ -4,6 +4,7 @@ import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
 import Select from "../../components/Select";
+import SearchBox from "../../components/SearchBox";
 import { usePagination } from "../../hooks/usePagination";
 import PasswordInput from "../../components/PasswordInput";
 import { downloadCsv } from "../../utils/export";
@@ -16,6 +17,7 @@ export default function ContactsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [search, setSearch] = useState("");
 
   // Form fields - matches the Contact Master fields exactly from the problem statement.
   const [name, setName] = useState("");
@@ -82,8 +84,18 @@ export default function ContactsPage() {
     setHasPortalLogin(has_login);
   }
 
+  function validate(): string | null {
+    if (!name.trim()) return "Name is required";
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return "Enter a valid email address";
+    if (mobile && !/^\d{10}$/.test(mobile)) return "Mobile number must be exactly 10 digits";
+    if (pincode && !/^\d{6}$/.test(pincode)) return "Pincode must be exactly 6 digits";
+    return null;
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    const validationError = validate();
+    if (validationError) { setFormError(validationError); return; }
     setFormError(null);
     setSaving(true);
     try {
@@ -135,7 +147,12 @@ export default function ContactsPage() {
     catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore contact"); }
   }
 
-  const { pageItems, page, totalPages, setPage } = usePagination([...contacts].sort((a, b) => b.id - a.id));
+  const filteredContacts = contacts.filter((c) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return c.name.toLowerCase().includes(q) || (c.email ?? "").toLowerCase().includes(q) || (c.mobile ?? "").toLowerCase().includes(q);
+  });
+  const { pageItems, page, totalPages, setPage } = usePagination([...filteredContacts].sort((a, b) => b.id - a.id));
 
   return (
     <div>
@@ -153,10 +170,14 @@ export default function ContactsPage() {
         </div>
       </div>
 
+      <SearchBox value={search} onChange={setSearch} placeholder="Search by name, email, or mobile..." />
+
       {loading ? (
         <div className="empty-state">Loading...</div>
       ) : contacts.length === 0 ? (
         <div className="empty-state">No contacts yet.</div>
+      ) : filteredContacts.length === 0 ? (
+        <div className="empty-state">No contacts match "{search}".</div>
       ) : (
         <div className="table-wrap">
           <table>
@@ -209,7 +230,7 @@ export default function ContactsPage() {
             </label>
             <label>
               Mobile
-              <input value={mobile} onChange={(e) => setMobile(e.target.value)} />
+              <input value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))} inputMode="numeric" maxLength={10} placeholder="10-digit mobile number" />
             </label>
             <label>
               City
@@ -221,7 +242,7 @@ export default function ContactsPage() {
             </label>
             <label>
               Pincode
-              <input value={pincode} onChange={(e) => setPincode(e.target.value)} />
+              <input value={pincode} onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" maxLength={6} placeholder="6-digit pincode" />
             </label>
             <label>
               Profile image URL

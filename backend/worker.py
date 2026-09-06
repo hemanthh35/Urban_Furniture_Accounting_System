@@ -18,7 +18,6 @@ for per-job process isolation.
 
 import time
 
-from redis.exceptions import ConnectionError as RedisConnectionError
 from rq import SimpleWorker
 from rq.timeouts import TimerDeathPenalty
 
@@ -26,15 +25,15 @@ from jobs.queue import _connection, jobs_queue
 
 if __name__ == "__main__":
     # A dropped Redis connection (idle overnight, a Docker restart, a network
-    # blip) makes RQ give up and exit rather than reconnect on its own - so this
-    # keeps making a fresh Worker and re-entering work() instead of the process
-    # just dying silently and leaving every future job stuck "queued" forever.
+    # blip) makes RQ's own work() loop catch redis.exceptions.TimeoutError
+    # internally, log "quitting", and just return - no exception ever reaches
+    # here, so there's nothing to try/except. The only way to actually recover
+    # is to notice work() returned at all and start a brand new Worker: Ctrl+C
+    # is the one legitimate way to stop this script, and that raises
+    # KeyboardInterrupt, which isn't caught here, so it still exits normally.
     while True:
-        try:
-            worker = SimpleWorker([jobs_queue], connection=_connection)
-            worker.death_penalty_class = TimerDeathPenalty
-            worker.work()
-            break  # work() only returns normally on a clean shutdown
-        except RedisConnectionError:
-            print("Lost the Redis connection - reconnecting in 3s...")
-            time.sleep(3)
+        worker = SimpleWorker([jobs_queue], connection=_connection)
+        worker.death_penalty_class = TimerDeathPenalty
+        worker.work()
+        print("Worker loop exited (idle timeout or dropped connection) - restarting in 3s...")
+        time.sleep(3)

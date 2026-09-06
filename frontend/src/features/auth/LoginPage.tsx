@@ -4,6 +4,7 @@ import { authApi } from "../../api/auth";
 import { ApiError } from "../../api/client";
 import { useAuth } from "./AuthContext";
 import PasswordInput from "../../components/PasswordInput";
+import AuthVisual from "../../components/AuthVisual";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -33,26 +34,29 @@ export default function LoginPage() {
 
   return (
     <div className="auth-screen">
-      <form className="auth-card" onSubmit={handleSubmit}>
-        <h1>Urban Furniture</h1>
-        <p className="auth-sub">Accounting System</p>
-        <label>
-          Login ID or Email
-          <input value={loginId} onChange={(e) => setLoginId(e.target.value)} required autoFocus />
-        </label>
-        <p className="field-hint">Staff sign in with their Login ID; contacts sign in with their email.</p>
-        <label>
-          Password
-          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </label>
-        {error && <div className="form-error">{error}</div>}
-        <button type="submit" disabled={loading}>
-          {loading ? "Signing in..." : "Sign In"}
-        </button>
-        <p className="auth-footer">
-          No account? <Link to="/signup">Sign up</Link>
-        </p>
-      </form>
+      <AuthVisual />
+      <div className="auth-form-side">
+        <form className="auth-card" onSubmit={handleSubmit}>
+          <h1>Welcome back</h1>
+          <p className="auth-sub">Sign in to your Urban Furniture account</p>
+          <label>
+            Login ID or Email
+            <input value={loginId} onChange={(e) => setLoginId(e.target.value)} required autoFocus />
+          </label>
+          <p className="field-hint">Staff sign in with their Login ID; contacts sign in with their email.</p>
+          <label>
+            Password
+            <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </label>
+          {error && <div className="form-error">{error}</div>}
+          <button type="submit" disabled={loading}>
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+          <p className="auth-footer">
+            No account? <Link to="/signup">Sign up</Link>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }

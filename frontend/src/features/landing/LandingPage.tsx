@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import BrandMark from "../../components/BrandMark";
 
 // Small stroke-style icon set for the feature grid - keeps the page from
 // leaning on emoji, which render inconsistently across platforms anyway.
@@ -55,11 +56,12 @@ export default function LandingPage() {
       <header className="landing-nav">
         <div className="landing-nav-inner">
           <div className="landing-brand">
-            <span className="landing-brand-mark">UF</span>
+            <BrandMark />
             Urban Furniture
           </div>
           <nav className="landing-nav-links">
             <a href="#features">Features</a>
+            <a href="#gap">The Gap</a>
             <a href="#how-it-works">How it works</a>
             <a href="#security">Security</a>
           </nav>
@@ -153,6 +155,58 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section id="gap" className="landing-section">
+        <div className="landing-section-head">
+          <span className="landing-eyebrow">The Gap</span>
+          <h2>Most small furniture businesses are still running this by hand</h2>
+          <p>
+            Spreadsheets don't send reminders, don't prove they're balanced, and don't survive a laptop crash.
+            Beyond the core accounting flow, we built the things a manual process — and most off-the-shelf
+            tools — quietly leave out.
+          </p>
+        </div>
+        <div className="landing-gap-grid">
+          <div className="landing-gap-card">
+            <span className="landing-gap-tag landing-gap-tag-bad">Without a real system</span>
+            <ul className="landing-x-list">
+              <li>An overdue customer invoice just sits there until someone happens to notice</li>
+              <li>No way to prove the books actually balance — an error can hide for months</li>
+              <li>Emailing an invoice means opening it, exporting a PDF, and attaching it, by hand, every time</li>
+              <li>One server, one point of failure — it restarts, every request in flight drops</li>
+              <li>Running a big report freezes the app for whoever's waiting on it</li>
+            </ul>
+          </div>
+          <div className="landing-gap-card landing-gap-card-good">
+            <span className="landing-gap-tag landing-gap-tag-good">With Urban Furniture</span>
+            <ul className="landing-check-list">
+              <li>Payment reminders email themselves automatically every 24 hours — nobody has to remember</li>
+              <li>A Ledger Integrity Check re-verifies every debit equals every credit, on demand</li>
+              <li>Invoice, payment-received, and reminder emails send automatically with the PDF attached</li>
+              <li>Two load-balanced API instances behind Nginx — a restart never drops a request</li>
+              <li>Heavy jobs run on a background worker queue — the app stays responsive while they run</li>
+            </ul>
+          </div>
+        </div>
+        <div className="landing-stat-grid">
+          <div className="landing-stat-card">
+            <strong>3</strong>
+            <span>automatic emails — invoice, payment received, overdue reminder</span>
+          </div>
+          <div className="landing-stat-card">
+            <strong>24h</strong>
+            <span>automatic reminder cycle for every overdue invoice</span>
+          </div>
+          <div className="landing-stat-card">
+            <strong>2</strong>
+            <span>load-balanced API instances, proven live — never a single point of failure</span>
+          </div>
+          <div className="landing-stat-card">
+            <strong>0</strong>
+            <span>blocking operations — ledger checks and exports run off the request thread</span>
+          </div>
+        </div>
+      </section>
+
       <section id="how-it-works" className="landing-section landing-section-alt">
         <div className="landing-section-head">
           <span className="landing-eyebrow">How it works</span>
@@ -200,7 +254,7 @@ export default function LandingPage() {
       <footer className="landing-footer">
         <div className="landing-footer-inner">
           <div className="landing-brand">
-            <span className="landing-brand-mark">UF</span>
+            <BrandMark />
             Urban Furniture
           </div>
           <p>Accounting System</p>

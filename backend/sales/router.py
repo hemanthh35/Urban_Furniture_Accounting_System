@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.security import CurrentUser, require_roles
+from core.signing import verify_document_token
 from sales import service
 from sales.schemas import CustomerInvoiceCreate, CustomerInvoiceDetailOut, CustomerInvoiceOut, SalesOrderCreate, SalesOrderOut, SalesOrderUpdate
 
@@ -53,6 +54,14 @@ def get_customer_invoice_detail(invoice_id: int, db: Session = Depends(get_db), 
     if user.role == "contact":
         so = service.get_sales_order(db, invoice.sales_order_id)
         if so.customer_id != user.contact_id:
-            from fastapi import HTTPException
             raise HTTPException(status_code=403, detail="You can only view your own invoices")
+    return service.get_customer_invoice_detail(db, invoice_id)
+
+
+@router.get("/public/customer-invoices/{invoice_id}", response_model=CustomerInvoiceDetailOut)
+def get_public_customer_invoice_detail(invoice_id: int, token: str, db: Session = Depends(get_db)):
+    """Backs the "Pay Now" email link's breakdown - no login, same signed-token
+    trust as the PDF link and the public checkout endpoint."""
+    if not verify_document_token("customer-invoice", invoice_id, token):
+        raise HTTPException(status_code=403, detail="Invalid or expired payment link")
     return service.get_customer_invoice_detail(db, invoice_id)

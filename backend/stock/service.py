@@ -28,13 +28,27 @@ def add_movements_for_bill(db: Session, bill_id: int, movement_date: date, items
 
 
 def add_movements_for_invoice(db: Session, invoice_id: int, movement_date: date, items) -> None:
+    # Two lines can share the same product (e.g. a split order at different
+    # tax rates) - they have to be checked against their COMBINED quantity in
+    # one pass. The session doesn't autoflush, so checking current_quantity()
+    # one line at a time would never see an earlier line's still-pending
+    # deduction, and both lines could pass individually even though together
+    # they oversell what's actually on hand.
+    requested_by_product: dict[int, int] = {}
     for item in items:
         product = db.query(Product).filter(Product.id == item.product_id).first()
         if not product:
             raise AppError("PRODUCT_NOT_FOUND", f"Product {item.product_id} does not exist", 404)
         if product.type != "Service":
-            if current_quantity(db, item.product_id) < item.quantity:
-                raise AppError("INSUFFICIENT_STOCK", f"Not enough stock for product {product.name}", 400)
+            requested_by_product[item.product_id] = requested_by_product.get(item.product_id, 0) + item.quantity
+
+    for product_id, total_requested in requested_by_product.items():
+        if current_quantity(db, product_id) < total_requested:
+            product = db.query(Product).filter(Product.id == product_id).first()
+            raise AppError("INSUFFICIENT_STOCK", f"Not enough stock for product {product.name}", 400)
+
+    for item in items:
+        if item.product_id in requested_by_product:
             db.add(StockMovement(
                 product_id=item.product_id,
                 source_type="customer_invoice",

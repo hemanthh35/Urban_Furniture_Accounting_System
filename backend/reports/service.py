@@ -13,11 +13,11 @@ from accounts.models import Account
 from budgets.models import AnalyticAccount, Budget
 from core.errors import AppError
 from journals.models import JournalEntry, JournalEntryLine
-from reports.schemas import AccountBalance, BalanceSheet, BudgetReport, BudgetReportRow, DashboardSummary, ProfitAndLoss
+from reports.schemas import AccountBalance, BalanceSheet, BudgetReport, BudgetReportRow, DashboardSummary, ProductProfitRow, ProfitAndLoss
 from payments.models import Payment
 from products.models import Product
-from purchases.models import PurchaseOrder, VendorBill
-from sales.models import CustomerInvoice, SalesOrder
+from purchases.models import PurchaseOrder, VendorBill, VendorBillLine
+from sales.models import CustomerInvoice, CustomerInvoiceLine, SalesOrder
 from stock.models import StockMovement
 
 
@@ -61,6 +61,69 @@ def balance_sheet(db: Session, from_date: date | None = None, to_date: date | No
     )
 
 
+def _product_profit_breakdown(db: Session, from_date: date | None, to_date: date | None) -> list[ProductProfitRow]:
+    """Per-product detail behind the Income/Expense totals above - which products
+    actually earned the profit, and which ones ate into it. Revenue and purchase
+    spend both exclude tax (same as the Sale Income / Purchase Expense ledger
+    accounts they roll up into - tax goes to Tax Payable/Recoverable instead).
+    Gross profit here is an estimate: units actually sold this period, valued at
+    the product's current master Cost - not the literal purchase price paid for
+    those specific units, which the ledger doesn't track per unit."""
+    sales_query = (
+        db.query(
+            CustomerInvoiceLine.product_id,
+            func.coalesce(func.sum(CustomerInvoiceLine.quantity), 0),
+            func.coalesce(func.sum(CustomerInvoiceLine.quantity * CustomerInvoiceLine.unit_price_cents), 0),
+        )
+        .join(CustomerInvoice, CustomerInvoice.id == CustomerInvoiceLine.customer_invoice_id)
+    )
+    if from_date:
+        sales_query = sales_query.filter(CustomerInvoice.invoice_date >= from_date)
+    if to_date:
+        sales_query = sales_query.filter(CustomerInvoice.invoice_date <= to_date)
+    sales_by_product = {row[0]: (row[1], row[2]) for row in sales_query.group_by(CustomerInvoiceLine.product_id).all()}
+
+    purchase_query = (
+        db.query(
+            VendorBillLine.product_id,
+            func.coalesce(func.sum(VendorBillLine.quantity), 0),
+            func.coalesce(func.sum(VendorBillLine.quantity * VendorBillLine.unit_price_cents), 0),
+        )
+        .join(VendorBill, VendorBill.id == VendorBillLine.vendor_bill_id)
+    )
+    if from_date:
+        purchase_query = purchase_query.filter(VendorBill.bill_date >= from_date)
+    if to_date:
+        purchase_query = purchase_query.filter(VendorBill.bill_date <= to_date)
+    purchases_by_product = {row[0]: (row[1], row[2]) for row in purchase_query.group_by(VendorBillLine.product_id).all()}
+
+    product_ids = set(sales_by_product) | set(purchases_by_product)
+    if not product_ids:
+        return []
+    products = {p.id: p for p in db.query(Product).filter(Product.id.in_(product_ids)).all()}
+
+    rows = []
+    for product_id in product_ids:
+        product = products.get(product_id)
+        if not product:
+            continue
+        units_sold, revenue_cents = sales_by_product.get(product_id, (0, 0))
+        units_purchased, purchase_spend_cents = purchases_by_product.get(product_id, (0, 0))
+        cogs_cents = units_sold * product.cost_cents
+        rows.append(ProductProfitRow(
+            product_id=product_id,
+            product_name=product.name,
+            units_sold=units_sold,
+            revenue_cents=revenue_cents,
+            units_purchased=units_purchased,
+            purchase_spend_cents=purchase_spend_cents,
+            estimated_cost_of_goods_sold_cents=cogs_cents,
+            estimated_gross_profit_cents=revenue_cents - cogs_cents,
+        ))
+    rows.sort(key=lambda r: r.revenue_cents, reverse=True)
+    return rows
+
+
 def profit_and_loss(db: Session, from_date: date | None = None, to_date: date | None = None) -> ProfitAndLoss:
     # Income is credit-normal, Expenses are debit-normal.
     income = [AccountBalance(account_name=a.name, balance_cents=c - d) for a, d, c in _account_balances(db, "Income", from_date, to_date)]
@@ -75,6 +138,7 @@ def profit_and_loss(db: Session, from_date: date | None = None, to_date: date | 
         total_income_cents=total_income,
         total_expenses_cents=total_expenses,
         net_profit_cents=total_income - total_expenses,
+        by_product=_product_profit_breakdown(db, from_date, to_date),
     )
 
 

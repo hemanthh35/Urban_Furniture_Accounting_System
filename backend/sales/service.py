@@ -159,8 +159,13 @@ def generate_customer_invoice(db: Session, so_id: int, invoice_date: date, due_d
         try:
             token, _ = sign_document_token("customer-invoice", invoice.id)
             pdf_url = f"{settings.backend_base_url}/reports/public/customer-invoices/{invoice.id}/pdf?token={token}"
+            # A much longer expiry than the PDF token above - a "Pay Now" link
+            # has to still work whenever the customer actually gets around to
+            # paying, not just in the 10 minutes right after the email lands.
+            pay_token, _ = sign_document_token("customer-invoice", invoice.id, ttl_seconds=7 * 24 * 60 * 60)
+            pay_url = f"{settings.frontend_base_url}/pay/{invoice.id}?token={pay_token}"
             pdf_bytes = build_customer_invoice_pdf(db, invoice)
-            send_invoice_email(customer.email, customer.name, invoice.id, invoice.amount_cents, str(due_date) if due_date else None, pdf_url, pdf_bytes=pdf_bytes)
+            send_invoice_email(customer.email, customer.name, invoice.id, invoice.amount_cents, str(due_date) if due_date else None, pdf_url, pay_url, pdf_bytes=pdf_bytes)
         except Exception:
             logging.getLogger("urbanfurniture.email").warning("Could not build/send invoice PDF email for invoice %s", invoice.id, exc_info=True)
 
@@ -190,6 +195,19 @@ def get_customer_invoice_detail(db: Session, invoice_id: int) -> dict:
     so = get_sales_order(db, invoice.sales_order_id)
     payments = db.query(Payment).filter(Payment.customer_invoice_id == invoice.id).order_by(Payment.date).all()
     items = invoice.lines or so.items
+    product_names = {p.id: p.name for p in db.query(Product).filter(Product.id.in_([i.product_id for i in items])).all()}
+    enriched_items = [
+        {
+            "id": item.id,
+            "product_id": item.product_id,
+            "product_name": product_names.get(item.product_id, "Unknown product"),
+            "quantity": item.quantity,
+            "unit_price_cents": item.unit_price_cents,
+            "tax_percent": item.tax_percent,
+        }
+        for item in items
+    ]
+    paid_cents = sum(p.amount_cents for p in payments)
     return {
         "id": invoice.id,
         "sales_order_id": invoice.sales_order_id,
@@ -199,7 +217,9 @@ def get_customer_invoice_detail(db: Session, invoice_id: int) -> dict:
         "subtotal_cents": invoice.subtotal_cents,
         "tax_cents": invoice.tax_cents,
         "status": invoice.status,
-        "items": items,
+        "paid_amount_cents": paid_cents,
+        "outstanding_amount_cents": max(invoice.amount_cents - paid_cents, 0),
+        "items": enriched_items,
         "payments": payments,
     }
 

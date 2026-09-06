@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { authApi } from "../../api/auth";
 import { ApiError } from "../../api/client";
 import PasswordInput from "../../components/PasswordInput";
+import AuthVisual from "../../components/AuthVisual";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -34,12 +35,15 @@ export default function SignupPage() {
   if (submitted) {
     return (
       <div className="auth-screen">
-        <div className="auth-card">
-          <h1>Account Created</h1>
-          <p className="auth-sub">An admin needs to activate your account in User Access before you can log in. Check back once they have.</p>
-          <p className="auth-footer">
-            <Link to="/login">Back to sign in</Link>
-          </p>
+        <AuthVisual />
+        <div className="auth-form-side">
+          <div className="auth-card">
+            <h1>Account Created</h1>
+            <p className="auth-sub">An admin needs to activate your account in User Access before you can log in. Check back once they have.</p>
+            <p className="auth-footer">
+              <Link to="/login">Back to sign in</Link>
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -47,35 +51,39 @@ export default function SignupPage() {
 
   return (
     <div className="auth-screen">
-      <form className="auth-card" onSubmit={handleSubmit}>
-        <h1>Create Account</h1>
-        <label>Name<input value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></label>
-        <label>
-          Login ID
-          <input value={loginId} onChange={(e) => setLoginId(e.target.value)} minLength={6} maxLength={12} required />
-        </label>
-        <p className="field-hint">6-12 characters.</p>
-        <label>
-          Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
-        <label>
-          Password
-          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
-        </label>
-        <p className="field-hint">At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.</p>
-        <label>
-          Re-enter Password
-          <PasswordInput value={confirmation} onChange={(e) => setConfirmation(e.target.value)} required />
-        </label>
-        {error && <div className="form-error">{error}</div>}
-        <button type="submit" disabled={loading}>
-          {loading ? "Creating..." : "Sign Up"}
-        </button>
-        <p className="auth-footer">
-          Already have an account? <Link to="/login">Sign in</Link>
-        </p>
-      </form>
+      <AuthVisual />
+      <div className="auth-form-side">
+        <form className="auth-card" onSubmit={handleSubmit}>
+          <h1>Create your account</h1>
+          <p className="auth-sub">Start running real accounting, not spreadsheets</p>
+          <label>Name<input value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></label>
+          <label>
+            Login ID
+            <input value={loginId} onChange={(e) => setLoginId(e.target.value)} minLength={6} maxLength={12} required />
+          </label>
+          <p className="field-hint">6-12 characters.</p>
+          <label>
+            Email
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </label>
+          <label>
+            Password
+            <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
+          </label>
+          <p className="field-hint">At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.</p>
+          <label>
+            Re-enter Password
+            <PasswordInput value={confirmation} onChange={(e) => setConfirmation(e.target.value)} required />
+          </label>
+          {error && <div className="form-error">{error}</div>}
+          <button type="submit" disabled={loading}>
+            {loading ? "Creating..." : "Sign Up"}
+          </button>
+          <p className="auth-footer">
+            Already have an account? <Link to="/login">Sign in</Link>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }

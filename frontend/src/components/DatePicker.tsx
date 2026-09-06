@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import Popover from "./Popover";
 
 interface Props {
   value: string; // "YYYY-MM-DD", or "" for no date picked
@@ -62,7 +63,11 @@ export default function DatePicker({ value, onChange, required, title, placehold
   useEffect(() => {
     if (!open) return;
     function onClickOutside(e: MouseEvent) {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Element;
+      // The popup itself lives in a portal at document.body (see Popover.tsx),
+      // so it's no longer a DOM descendant of boxRef - has to be checked
+      // separately, or every click inside the calendar would look "outside".
+      if (boxRef.current && !boxRef.current.contains(target) && !target.closest?.(".datepicker-popup")) setOpen(false);
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
@@ -124,8 +129,7 @@ export default function DatePicker({ value, onChange, required, title, placehold
           (`required`) still works exactly like a real date field. */}
       <input type="date" value={value} required={required} onChange={(e) => onChange(e.target.value)} tabIndex={-1} aria-hidden="true" className="datepicker-shadow-input" />
 
-      {open && (
-        <div className="datepicker-popup">
+      <Popover anchorRef={boxRef} open={open} onClose={() => setOpen(false)} className="datepicker-popup" estimatedHeight={340} minWidth={268}>
           <div className="datepicker-header">
             <button type="button" className="datepicker-nav" onClick={() => changeMonth(-1)} aria-label="Previous month">‹</button>
             <span className="datepicker-title">{MONTH_NAMES[viewMonth]} {viewYear}</span>
@@ -166,8 +170,7 @@ export default function DatePicker({ value, onChange, required, title, placehold
             </button>
             {!required && value && <button type="button" className="link-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange(""); setOpen(false); }}>Clear</button>}
           </div>
-        </div>
-      )}
+      </Popover>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
+import BrandMark from "./BrandMark";
 
 type NavItem = { to: string; label: string; end?: boolean; adminOnly?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
@@ -114,7 +115,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     <div className="shell">
       {mobileMenuOpen && <button type="button" className="mobile-menu-overlay" aria-label="Close menu" onClick={closeMobileMenu} />}
       <aside className={"sidebar" + (mobileMenuOpen ? " mobile-open" : "")}>
-        <div className="brand">Urban Furniture</div>
+        <div className="brand"><BrandMark />Urban Furniture</div>
         <nav>
           {role === "contact" ? (
             CONTACT_NAV.map((item) => (

@@ -1,6 +1,8 @@
 """Contact CRUD - the simplest module, good template for how every other module's
 service.py looks: plain functions, no magic, one job each."""
 
+import re
+
 from sqlalchemy.orm import Session
 
 from auth.models import User
@@ -8,6 +10,22 @@ from contacts.models import Contact
 from contacts.schemas import ContactCreate, ContactUpdate
 from core.errors import AppError
 from core.security import hash_password
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _validate_contact_fields(name: str, email: str | None, mobile: str | None, pincode: str | None) -> None:
+    """Checked here (not just in the frontend form) so a bad row can't sneak in
+    through Bulk Import or a direct API call either - every write path funnels
+    through create_contact/update_contact, so one check here covers all of them."""
+    if not name or not name.strip():
+        raise AppError("NAME_REQUIRED", "Name is required", 400)
+    if email and not _EMAIL_RE.match(email):
+        raise AppError("INVALID_EMAIL", "Enter a valid email address", 400)
+    if mobile and not (mobile.isdigit() and len(mobile) == 10):
+        raise AppError("INVALID_MOBILE", "Mobile number must be exactly 10 digits", 400)
+    if pincode and not (pincode.isdigit() and len(pincode) == 6):
+        raise AppError("INVALID_PINCODE", "Pincode must be exactly 6 digits", 400)
 
 
 def list_contacts(db: Session, include_archived: bool = False) -> list[Contact]:
@@ -41,6 +59,7 @@ def has_portal_login(db: Session, contact_id: int) -> bool:
 def create_contact(db: Session, payload: ContactCreate) -> Contact:
     if payload.type not in ("Customer", "Vendor", "Both"):
         raise AppError("INVALID_CONTACT_TYPE", "Contact type must be Customer, Vendor, or Both", 400)
+    _validate_contact_fields(payload.name, payload.email, payload.mobile, payload.pincode)
     data = payload.model_dump(exclude={"create_login_password"})
     contact = Contact(**data)
     db.add(contact)
@@ -84,6 +103,7 @@ def reset_portal_password(db: Session, contact_id: int, new_password: str) -> No
 def update_contact(db: Session, contact_id: int, payload: ContactUpdate) -> Contact:
     if payload.type not in ("Customer", "Vendor", "Both"):
         raise AppError("INVALID_CONTACT_TYPE", "Contact type must be Customer, Vendor, or Both", 400)
+    _validate_contact_fields(payload.name, payload.email, payload.mobile, payload.pincode)
     contact = get_contact(db, contact_id)
 
     # A contact's portal login authenticates by email - if it ever drifts from

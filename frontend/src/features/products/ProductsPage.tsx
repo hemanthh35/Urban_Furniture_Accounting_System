@@ -4,6 +4,7 @@ import { ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
 import Select from "../../components/Select";
+import SearchBox from "../../components/SearchBox";
 import { usePagination } from "../../hooks/usePagination";
 import { formatMoney } from "../../utils/money";
 import { downloadCsv } from "../../utils/export";
@@ -16,6 +17,7 @@ export default function ProductsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [search, setSearch] = useState("");
 
   const [name, setName] = useState("");
   const [type, setType] = useState("Goods");
@@ -109,7 +111,12 @@ export default function ProductsPage() {
     catch (err) { setFormError(err instanceof ApiError ? err.message : "Could not restore product"); }
   }
 
-  const { pageItems, page, totalPages, setPage } = usePagination([...products].sort((a, b) => b.id - a.id));
+  const filteredProducts = products.filter((p) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return p.name.toLowerCase().includes(q) || (p.category ?? "").toLowerCase().includes(q);
+  });
+  const { pageItems, page, totalPages, setPage } = usePagination([...filteredProducts].sort((a, b) => b.id - a.id));
 
   return (
     <div>
@@ -130,10 +137,14 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      <SearchBox value={search} onChange={setSearch} placeholder="Search by name or category..." />
+
       {loading ? (
         <div className="empty-state">Loading...</div>
       ) : products.length === 0 ? (
         <div className="empty-state">No products yet.</div>
+      ) : filteredProducts.length === 0 ? (
+        <div className="empty-state">No products match "{search}".</div>
       ) : (
         <div className="table-wrap">
           <table>

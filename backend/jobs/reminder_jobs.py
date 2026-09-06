@@ -5,8 +5,10 @@ emails that customer a reminder. Runs both on the automatic daily schedule
 from datetime import date
 
 from contacts.models import Contact
+from core.config import settings
 from core.database import SessionLocal
 from core.email import send_payment_reminder_email
+from core.signing import sign_document_token
 from payments.models import Payment
 from sales.models import CustomerInvoice, SalesOrder
 
@@ -34,7 +36,12 @@ def run_send_payment_reminders() -> dict:
             outstanding = max(invoice.amount_cents - paid, 0)
             if outstanding <= 0:
                 continue
-            if send_payment_reminder_email(customer.email, customer.name, invoice.id, outstanding, str(invoice.due_date)):
+            # 7 days, not the signing module's normal 10-minute default - a
+            # reminder email's whole point is to still be actionable whenever
+            # the customer gets to it, not just in the next few minutes.
+            token, _ = sign_document_token("customer-invoice", invoice.id, ttl_seconds=7 * 24 * 60 * 60)
+            pay_url = f"{settings.frontend_base_url}/pay/{invoice.id}?token={token}"
+            if send_payment_reminder_email(customer.email, customer.name, invoice.id, outstanding, str(invoice.due_date), pay_url):
                 reminders_sent += 1
 
         return {

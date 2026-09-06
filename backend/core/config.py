@@ -37,5 +37,9 @@ class Settings(BaseSettings):
     # same host:port the frontend calls the API on (see frontend/.env).
     backend_base_url: str = "http://192.168.102.59:8011"
 
+    # The "Pay Now" link in invoice/reminder emails points here - the frontend
+    # dev server's own host:port, not the backend's.
+    frontend_base_url: str = "http://192.168.102.59:5175"
+
 
 settings = Settings()

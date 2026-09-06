@@ -15,12 +15,24 @@ class BalanceSheet(BaseModel):
     total_capital_cents: int
 
 
+class ProductProfitRow(BaseModel):
+    product_id: int
+    product_name: str
+    units_sold: int
+    revenue_cents: int
+    units_purchased: int
+    purchase_spend_cents: int
+    estimated_cost_of_goods_sold_cents: int
+    estimated_gross_profit_cents: int
+
+
 class ProfitAndLoss(BaseModel):
     income: list[AccountBalance]
     expenses: list[AccountBalance]
     total_income_cents: int
     total_expenses_cents: int
     net_profit_cents: int
+    by_product: list[ProductProfitRow]
 
 
 class BudgetReportRow(BaseModel):
